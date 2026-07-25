@@ -123,6 +123,26 @@ def test_extra_credit_exceeds_100_uncapped() -> None:
     assert grade.letter == "A"
 
 
+def test_category_is_points_based_not_mean_of_percentages() -> None:
+    """Unequal max_points: a Category is Σearned/Σpossible, not the average of the
+    Assignments' percentages. 10/10 (100%) and 0/100 (0%) → 10/110 ≈ 9.09%, not
+    the 50% a mean-of-percentages would give."""
+    small, large = uuid4(), uuid4()
+    grade = compute_subject_grade(
+        GradeInput(
+            FIRST,
+            [CategoryWeight(HOMEWORK, Decimal("100"))],
+            [
+                AssignmentScore(small, HOMEWORK, Decimal("10"), frozenset(), Decimal("10")),
+                AssignmentScore(large, HOMEWORK, Decimal("100"), frozenset(), Decimal("0")),
+            ],
+            _scale(),
+        )
+    )
+    assert grade.percent == Decimal("9.09")  # 10/110*100, not 50
+    assert grade.letter == "F"
+
+
 def test_letter_for_percent_boundaries() -> None:
     scale = _scale()
     assert letter_for_percent(Decimal("90"), scale) == "A"
