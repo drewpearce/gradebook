@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from fastapi.testclient import TestClient
 from httpx import Response
 
@@ -215,3 +217,45 @@ def test_roster_grades(client: TestClient) -> None:
     by_student = {g["student_id"]: g for g in body["grades"]}
     assert by_student[s["alice"]]["letter"] == "B"
     assert by_student[s["bob"]]["letter"] == "A"
+
+
+def test_delete_grade_level_with_students_is_blocked(client: TestClient) -> None:
+    s = _mixed_audience_setup(client)
+    # 'first' holds Alice — deleting it must not silently cascade her away.
+    assert client.delete(f"/grade-levels/{s['first']}").status_code == 409
+    # A Grade Level with no Students deletes cleanly.
+    empty = _grade_level(client, s["class_id"], "3rd", 3)
+    assert client.delete(f"/grade-levels/{empty}").status_code == 204
+
+
+def test_list_under_missing_parent_is_404(client: TestClient) -> None:
+    missing = uuid4()
+    assert client.get(f"/classes/{missing}/subjects").status_code == 404
+    assert client.get(f"/classes/{missing}/students").status_code == 404
+    assert client.get(f"/subjects/{missing}/assignments").status_code == 404
+
+
+def test_assignment_category_must_belong_to_subject(client: TestClient) -> None:
+    class_id = _class(client)
+    subject_a = _subject(client, class_id, "A")
+    subject_b = _subject(client, class_id, "B")
+    foreign_category = _category(client, subject_a, "HW", "100")
+    r = client.post(
+        f"/subjects/{subject_b}/assignments",
+        json={
+            "name": "X",
+            "category_id": foreign_category,
+            "max_points": "10",
+            "audience_grade_level_ids": [],
+        },
+    )
+    assert r.status_code == 422
+
+
+def test_grading_scale_bands_sorted_high_to_low(client: TestClient) -> None:
+    class_id = _class(client)
+    _scale(client, class_id)
+    bands = client.get(f"/classes/{class_id}/grading-scale").json()["bands"]
+    mins = [float(b["min_percent"]) for b in bands]
+    assert mins == sorted(mins, reverse=True)
+    assert bands[0]["letter"] == "A"

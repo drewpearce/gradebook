@@ -82,6 +82,7 @@ class GradingScale(UUIDMixin, TimestampMixin, Base):
         back_populates="grading_scale",
         cascade="all, delete-orphan",
         passive_deletes=True,
+        order_by="GradeBand.min_percent.desc()",
     )
 
 

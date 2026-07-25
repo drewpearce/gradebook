@@ -41,6 +41,7 @@ def create_subject(class_id: UUID, payload: SubjectCreate, session: SessionDep) 
 
 @router.get("/classes/{class_id}/subjects", response_model=list[SubjectRead])
 def list_subjects(class_id: UUID, session: SessionDep) -> list[Subject]:
+    get_or_404(session, Class, class_id, "Class")
     return list(
         session.scalars(select(Subject).where(Subject.class_id == class_id).order_by(Subject.name))
     )
@@ -86,6 +87,7 @@ def create_category(subject_id: UUID, payload: CategoryCreate, session: SessionD
 
 @router.get("/subjects/{subject_id}/categories", response_model=list[CategoryRead])
 def list_categories(subject_id: UUID, session: SessionDep) -> list[Category]:
+    get_or_404(session, Subject, subject_id, "Subject")
     return list(
         session.scalars(
             select(Category).where(Category.subject_id == subject_id).order_by(Category.name)
@@ -125,6 +127,19 @@ def _assignment_read(assignment: Assignment) -> AssignmentRead:
     )
 
 
+def _validate_category_in_subject(session: Session, subject_id: UUID, category_id: UUID) -> None:
+    """An Assignment's Category must belong to its Subject (mirrors the composite FK,
+    but as a clear 422/404 rather than a generic 409)."""
+    category = session.get(Category, category_id)
+    if category is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Category not found")
+    if category.subject_id != subject_id:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Category must belong to the subject.",
+        )
+
+
 def _resolve_audience(
     session: Session, subject: Subject, grade_level_ids: Sequence[UUID]
 ) -> list[GradeLevel]:
@@ -155,6 +170,7 @@ def create_assignment(
     subject_id: UUID, payload: AssignmentCreate, session: SessionDep
 ) -> AssignmentRead:
     subject = get_or_404(session, Subject, subject_id, "Subject")
+    _validate_category_in_subject(session, subject_id, payload.category_id)
     audience = _resolve_audience(session, subject, payload.audience_grade_level_ids)
     assignment = Assignment(
         subject_id=subject_id,
@@ -171,6 +187,7 @@ def create_assignment(
 
 @router.get("/subjects/{subject_id}/assignments", response_model=list[AssignmentRead])
 def list_assignments(subject_id: UUID, session: SessionDep) -> list[AssignmentRead]:
+    get_or_404(session, Subject, subject_id, "Subject")
     assignments = session.scalars(
         select(Assignment)
         .where(Assignment.subject_id == subject_id)
@@ -191,6 +208,8 @@ def update_assignment(
 ) -> AssignmentRead:
     assignment = get_or_404(session, Assignment, assignment_id, "Assignment")
     data = payload.model_dump(exclude_unset=True)
+    if data.get("category_id") is not None:
+        _validate_category_in_subject(session, assignment.subject_id, data["category_id"])
     if "audience_grade_level_ids" in data:
         assignment.audience = _resolve_audience(
             session, assignment.subject, data.pop("audience_grade_level_ids")

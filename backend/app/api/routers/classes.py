@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
 from app.api.deps import SessionDep, commit_or_conflict, get_or_404
-from app.models import Class, GradeBand, GradeLevel, GradingScale
+from app.models import Class, GradeBand, GradeLevel, GradingScale, Student
 from app.schemas.class_ import (
     ClassCreate,
     ClassRead,
@@ -102,7 +102,18 @@ def update_grade_level(
 
 @router.delete("/grade-levels/{grade_level_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_grade_level(grade_level_id: UUID, session: SessionDep) -> None:
-    session.delete(get_or_404(session, GradeLevel, grade_level_id, "Grade level"))
+    grade_level = get_or_404(session, GradeLevel, grade_level_id, "Grade level")
+    # A Grade Level is a label Students reference, not a container of them: deleting
+    # one would silently cascade its Students (and their Scores) away. Refuse instead.
+    referenced = session.scalar(
+        select(Student.id).where(Student.grade_level_id == grade_level_id).limit(1)
+    )
+    if referenced is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Cannot delete a grade level that still has students; reassign them first.",
+        )
+    session.delete(grade_level)
     session.commit()
 
 

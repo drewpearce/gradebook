@@ -40,6 +40,7 @@ def create_student(class_id: UUID, payload: StudentCreate, session: SessionDep) 
 
 @router.get("/classes/{class_id}/students", response_model=list[StudentRead])
 def list_students(class_id: UUID, session: SessionDep) -> list[Student]:
+    get_or_404(session, Class, class_id, "Class")
     return list(
         session.scalars(select(Student).where(Student.class_id == class_id).order_by(Student.name))
     )

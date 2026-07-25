@@ -55,7 +55,7 @@ class AssignmentUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=160)
     category_id: uuid.UUID | None = None
     max_points: Decimal | None = Field(default=None, gt=0)
-    # None leaves the Audience unchanged; [] clears it (⇒ applies to all).
+    # Omit to leave the Audience unchanged; send [] or null to clear it (⇒ all).
     audience_grade_level_ids: list[uuid.UUID] | None = None
 
 
