@@ -23,7 +23,29 @@ cp .env.example .env
 
 # Apply migrations
 uv run alembic upgrade head
+
+# Create the single teacher login (prompts for a password)
+uv run python -m app.cli create-teacher --username katie
 ```
+
+Set a real `SECRET_KEY` in `.env` before deploying — the default is insecure.
+
+## Auth
+
+Single-teacher, bearer-JWT auth (see [`ADR-0001`](../docs/adr/0001-spa-plus-json-api.md)).
+Data endpoints require a token; `/health` and `/auth/login` are open.
+
+```bash
+# Log in (OAuth2 password form) → {"access_token": "...", "token_type": "bearer"}
+curl -s -X POST localhost:8000/auth/login \
+  -d 'username=katie&password=YOUR_PASSWORD'
+
+# Call a protected endpoint
+curl localhost:8000/classes -H "Authorization: Bearer $TOKEN"
+```
+
+`python -m app.cli create-teacher --username <name>` also resets the password if the
+teacher already exists.
 
 ## Run
 
