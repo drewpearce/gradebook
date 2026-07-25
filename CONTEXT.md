@@ -43,7 +43,9 @@ _Avoid_: Task, activity
 The set of Grade Levels an Assignment applies to — 1st only, 2nd only, or both.
 A Student's Grade counts only the Assignments whose Audience includes their
 Grade Level; an Assignment outside a Student's Audience is simply not counted for
-them — it is not a zero.
+them — it is not a zero. An **empty** Audience means the Assignment applies to
+*every* Grade Level in the Class: progressive disclosure never asks a
+single-Grade-Level Class to choose one, so "unset" reads as "everyone."
 _Avoid_: Target, eligibility, applies-to
 
 **Score**:
