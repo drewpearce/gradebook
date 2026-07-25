@@ -8,6 +8,7 @@ from app.config import settings
 
 
 def hash_password(password: str) -> str:
+    # bcrypt silently truncates the input to 72 bytes; fine for typical passwords.
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
