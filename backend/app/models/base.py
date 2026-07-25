@@ -14,7 +14,12 @@ class UUIDMixin:
 
 
 class TimestampMixin:
-    """``created_at`` / ``updated_at``, maintained by the database."""
+    """Row timestamps.
+
+    ``created_at`` is set by the database (``server_default``). ``updated_at`` is
+    bumped by SQLAlchemy's ``onupdate`` on ORM flush — a raw SQL ``UPDATE`` would
+    bypass it, so add a DB trigger if non-ORM writes are ever introduced.
+    """
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

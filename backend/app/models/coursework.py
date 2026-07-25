@@ -89,7 +89,11 @@ class Category(UUIDMixin, TimestampMixin, Base):
 class Assignment(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "assignments"
     __table_args__ = (
-        # Enforce that an Assignment's Category belongs to its Subject.
+        # Cross-entity invariant: an Assignment's Category must belong to its
+        # Subject. Kept ALONGSIDE the single-column subject_id / category_id FKs
+        # below (which carry ON DELETE CASCADE) — this composite FK adds only the
+        # (subject_id, category_id) consistency check. Both are needed; don't
+        # collapse into one.
         ForeignKeyConstraint(
             ["subject_id", "category_id"],
             ["categories.subject_id", "categories.id"],

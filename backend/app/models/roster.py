@@ -15,7 +15,11 @@ if TYPE_CHECKING:
 class Student(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "students"
     __table_args__ = (
-        # Enforce that a Student's Grade Level belongs to the Student's Class.
+        # Cross-entity invariant: a Student's Grade Level must belong to their
+        # Class. Kept ALONGSIDE the single-column class_id / grade_level_id FKs
+        # below (which carry ON DELETE CASCADE) — this composite FK adds only the
+        # (class_id, grade_level_id) consistency check. Both are needed; don't
+        # collapse into one.
         ForeignKeyConstraint(
             ["class_id", "grade_level_id"],
             ["grade_levels.class_id", "grade_levels.id"],
