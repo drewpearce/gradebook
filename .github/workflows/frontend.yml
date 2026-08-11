@@ -45,8 +45,5 @@ jobs:
       - name: Format check (prettier)
         run: npm run format:check
 
-      - name: Type check (tsc)
-        run: npm run typecheck
-
-      - name: Build
+      - name: Build (typechecks via tsc, then bundles)
         run: npm run build

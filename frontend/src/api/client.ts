@@ -25,6 +25,21 @@ const authMiddleware: Middleware = {
 export const client = createClient<paths>({ baseUrl: API_URL })
 client.use(authMiddleware)
 
+/**
+ * Unwrap an openapi-fetch `{ data, error }` result for use as a TanStack Query
+ * `queryFn`: return the typed data, or throw the error so Query treats it as failed.
+ * The single seam every query hook goes through.
+ */
+export async function unwrap<T>(
+  call: Promise<{ data?: T; error?: unknown }>,
+): Promise<T> {
+  const { data, error } = await call
+  if (error !== undefined) {
+    throw error
+  }
+  return data as T
+}
+
 /** Log in via the OAuth2 password flow (form-encoded) and return the bearer token. */
 export async function login(username: string, password: string): Promise<string> {
   const response = await fetch(`${API_URL}/auth/login`, {
