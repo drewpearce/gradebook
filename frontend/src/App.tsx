@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { AuthProvider } from '@/auth/AuthProvider'
 import { ProtectedRoute } from '@/auth/ProtectedRoute'
 import { Layout } from '@/components/Layout'
+import { ClassDetailPage } from '@/routes/ClassDetailPage'
 import { HomePage } from '@/routes/HomePage'
 import { LoginPage } from '@/routes/LoginPage'
 
@@ -16,7 +17,10 @@ const router = createBrowserRouter([
     children: [
       {
         element: <Layout />,
-        children: [{ path: '/', element: <HomePage /> }],
+        children: [
+          { path: '/', element: <HomePage /> },
+          { path: '/classes/:classId', element: <ClassDetailPage /> },
+        ],
       },
     ],
   },
