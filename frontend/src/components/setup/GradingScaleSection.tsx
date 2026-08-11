@@ -141,7 +141,9 @@ export function GradingScaleSection({ classId }: { classId: string }) {
         />
       }
     >
-      {bands.length === 0 ? (
+      {scale.error ? (
+        <p className="text-sm text-destructive">Failed to load the grading scale.</p>
+      ) : bands.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No grading scale yet. Set the letter cutoffs.
         </p>

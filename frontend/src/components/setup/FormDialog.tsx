@@ -17,7 +17,6 @@ export function FormDialog({
   trigger,
   title,
   description,
-  submitLabel = 'Save',
   pending,
   submitDisabled = false,
   error,
@@ -29,7 +28,6 @@ export function FormDialog({
   trigger: ReactNode
   title: string
   description?: string
-  submitLabel?: string
   pending: boolean
   submitDisabled?: boolean
   error: string | null
@@ -49,7 +47,7 @@ export function FormDialog({
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
             <Button type="submit" disabled={pending || submitDisabled}>
-              {pending ? 'Saving…' : submitLabel}
+              {pending ? 'Saving…' : 'Save'}
             </Button>
           </DialogFooter>
         </form>

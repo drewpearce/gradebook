@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 
 import { client, unwrap } from '@/api/client'
+import { useInvalidatingMutation } from '@/api/mutations'
 import type { components } from '@/api/schema'
 
 type GradingScaleUpsert = components['schemas']['GradingScaleUpsert']
@@ -27,16 +28,14 @@ export function useGradingScale(classId: string) {
 }
 
 export function usePutGradingScale(classId: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (body: GradingScaleUpsert) =>
+  return useInvalidatingMutation(
+    (body: GradingScaleUpsert) =>
       unwrap(
         client.PUT('/classes/{class_id}/grading-scale', {
           params: { path: { class_id: classId } },
           body,
         }),
       ),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['grading-scale', classId] }),
-  })
+    [['grading-scale', classId]],
+  )
 }

@@ -198,7 +198,9 @@ function SubjectCard({ classId, subject }: { classId: string; subject: Subject }
             }
           />
         </div>
-        {cats.length === 0 ? (
+        {categories.error ? (
+          <p className="text-sm text-destructive">Failed to load categories.</p>
+        ) : cats.length === 0 ? (
           <p className="text-sm text-muted-foreground">No categories yet.</p>
         ) : (
           <>
@@ -258,7 +260,9 @@ export function SubjectsSection({ classId }: { classId: string }) {
         <SubjectDialog classId={classId} trigger={<Button size="sm">Add</Button>} />
       }
     >
-      {list.length === 0 ? (
+      {subjects.error ? (
+        <p className="text-sm text-destructive">Failed to load subjects.</p>
+      ) : list.length === 0 ? (
         <p className="text-sm text-muted-foreground">No subjects yet.</p>
       ) : (
         <div className="space-y-3">

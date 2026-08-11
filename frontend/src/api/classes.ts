@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 
 import { client, unwrap } from '@/api/client'
+import { useInvalidatingMutation } from '@/api/mutations'
 import type { components } from '@/api/schema'
 
 type ClassCreate = components['schemas']['ClassCreate']
@@ -24,37 +25,31 @@ export function useClass(classId: string) {
 }
 
 export function useCreateClass() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (body: ClassCreate) => unwrap(client.POST('/classes', { body })),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['classes'] }),
-  })
+  return useInvalidatingMutation(
+    (body: ClassCreate) => unwrap(client.POST('/classes', { body })),
+    [['classes']],
+  )
 }
 
 export function useUpdateClass(classId: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (body: ClassUpdate) =>
+  return useInvalidatingMutation(
+    (body: ClassUpdate) =>
       unwrap(
         client.PATCH('/classes/{class_id}', {
           params: { path: { class_id: classId } },
           body,
         }),
       ),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['classes'] })
-      void queryClient.invalidateQueries({ queryKey: ['class', classId] })
-    },
-  })
+    [['classes'], ['class', classId]],
+  )
 }
 
 export function useDeleteClass() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (classId: string) =>
+  return useInvalidatingMutation(
+    (classId: string) =>
       unwrap(
         client.DELETE('/classes/{class_id}', { params: { path: { class_id: classId } } }),
       ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['classes'] }),
-  })
+    [['classes']],
+  )
 }

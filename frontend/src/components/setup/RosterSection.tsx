@@ -127,7 +127,9 @@ export function RosterSection({ classId }: { classId: string }) {
         />
       }
     >
-      {levels.length === 0 ? (
+      {students.error ? (
+        <p className="text-sm text-destructive">Failed to load students.</p>
+      ) : levels.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Add a grade level first, then add students.
         </p>

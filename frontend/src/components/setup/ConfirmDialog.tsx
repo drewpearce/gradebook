@@ -16,13 +16,11 @@ export function ConfirmDialog({
   trigger,
   title,
   description,
-  confirmLabel = 'Delete',
   onConfirm,
 }: {
   trigger: ReactNode
   title: string
   description: string
-  confirmLabel?: string
   onConfirm: () => Promise<unknown>
 }) {
   const { open, setOpen, pending, error, run } = useDialogForm()
@@ -45,7 +43,7 @@ export function ConfirmDialog({
             onClick={() => void run(onConfirm)}
             disabled={pending}
           >
-            {pending ? 'Working…' : confirmLabel}
+            {pending ? 'Working…' : 'Delete'}
           </Button>
         </DialogFooter>
       </DialogContent>

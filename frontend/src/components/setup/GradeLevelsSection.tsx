@@ -25,7 +25,7 @@ function GradeLevelDialog({
 }: {
   classId: string
   gradeLevel?: GradeLevel
-  nextPosition: number
+  nextPosition?: number
   trigger: ReactNode
 }) {
   const { open, setOpen, pending, error, run } = useDialogForm()
@@ -45,7 +45,7 @@ function GradeLevelDialog({
       if (gradeLevel) {
         return update.mutateAsync({ id: gradeLevel.id, body: { name } })
       }
-      return create.mutateAsync({ name, position: nextPosition })
+      return create.mutateAsync({ name, position: nextPosition ?? 0 })
     })
   }
 
@@ -90,7 +90,9 @@ export function GradeLevelsSection({ classId }: { classId: string }) {
         />
       }
     >
-      {levels.length === 0 ? (
+      {gradeLevels.error ? (
+        <p className="text-sm text-destructive">Failed to load grade levels.</p>
+      ) : levels.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No grade levels yet. Add at least one (e.g. “1st”).
         </p>
@@ -103,7 +105,6 @@ export function GradeLevelsSection({ classId }: { classId: string }) {
                 <GradeLevelDialog
                   classId={classId}
                   gradeLevel={level}
-                  nextPosition={level.position}
                   trigger={
                     <Button size="sm" variant="ghost">
                       Edit
