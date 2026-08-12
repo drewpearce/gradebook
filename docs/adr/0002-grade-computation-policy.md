@@ -33,3 +33,12 @@ completeness requires every Category to be present, the weights always sum to
 - If a teacher wants a missing assignment to actually count as zero, that is an
   explicit Score of 0, not a blank — a distinction the score-entry UI must make
   clear.
+- **Weights that don't sum to 100 are handled softly, not enforced at write.** The
+  pure module (`app/domain/grades.py`) assumes the weighted Categories sum to 100
+  and normalizes otherwise; the API layer (`app/services/grades.py`) does *not*
+  reject a Category edit that leaves the total ≠ 100 — it surfaces the shortfall as
+  a second **Incomplete** reason (`weights_not_100`) at grade time. This is a
+  deliberate extension of Incomplete beyond the empty-Category case above, chosen
+  so a Teacher can build a Subject's Categories incrementally (progressive
+  disclosure) without mid-setup errors. The trade-off: a mis-weighted Subject reads
+  as Incomplete rather than being blocked on save.

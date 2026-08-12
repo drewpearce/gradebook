@@ -22,6 +22,12 @@ A group of Students a Teacher teaches together. May span more than one Grade
 Level (e.g. a combined 1st/2nd grade class).
 _Avoid_: Section, course, room, homeroom
 
+**Roster**:
+The Students enrolled in a Class, taken as a whole — e.g. "the roster grades" is
+every Student's Grade for a Subject. A collection noun for Students, not a
+distinct entity.
+_Avoid_: Class list, register
+
 **Grade Level**:
 The year cohort a Student belongs to — e.g. 1st grade, 2nd grade. Determines
 which Assignments apply to the Student. Never shortened to "grade" (see Grade).
