@@ -4,16 +4,11 @@ import { useDeleteScore, useSubjectScores, useUpsertScore } from '@/api/scores'
 import type { components } from '@/api/schema'
 import { Input } from '@/components/ui/input'
 import { assignmentAppliesToStudent } from '@/lib/audience'
+import { formatPoints } from '@/lib/format'
 
 type Assignment = components['schemas']['AssignmentRead']
 type GradeLevel = components['schemas']['GradeLevelRead']
 type Student = components['schemas']['StudentRead']
-
-/** Trim a Decimal string like "8.00" to "8" / "8.5" for display. */
-function formatPoints(value: string): string {
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? String(parsed) : value
-}
 
 function ScoreRow({
   label,

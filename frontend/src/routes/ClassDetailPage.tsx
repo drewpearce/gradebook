@@ -37,6 +37,12 @@ export function ClassDetailPage() {
         </div>
         <div className="flex gap-2">
           <Link
+            to={`/classes/${klass.id}/grades`}
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          >
+            Grades
+          </Link>
+          <Link
             to={`/classes/${klass.id}/scores`}
             className={buttonVariants({ size: 'sm' })}
           >
