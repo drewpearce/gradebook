@@ -7,6 +7,7 @@ import { Layout } from '@/components/Layout'
 import { ClassDetailPage } from '@/routes/ClassDetailPage'
 import { HomePage } from '@/routes/HomePage'
 import { LoginPage } from '@/routes/LoginPage'
+import { ScoreEntryPage } from '@/routes/ScoreEntryPage'
 
 const queryClient = new QueryClient()
 
@@ -20,6 +21,7 @@ const router = createBrowserRouter([
         children: [
           { path: '/', element: <HomePage /> },
           { path: '/classes/:classId', element: <ClassDetailPage /> },
+          { path: '/classes/:classId/scores', element: <ScoreEntryPage /> },
         ],
       },
     ],

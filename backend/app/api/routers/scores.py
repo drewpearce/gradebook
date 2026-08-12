@@ -5,10 +5,32 @@ from sqlalchemy import select
 
 from app.api.deps import SessionDep, commit_or_conflict, get_or_404
 from app.domain.audience import assignment_applies_to_student
-from app.models import Assignment, Score, Student
+from app.models import Assignment, Class, Score, Student, Subject
 from app.schemas.score import ScoreRead, ScoreUpsert
 
 router = APIRouter(tags=["scores"])
+
+
+@router.get(
+    "/classes/{class_id}/subjects/{subject_id}/scores",
+    response_model=list[ScoreRead],
+)
+def list_subject_scores(class_id: UUID, subject_id: UUID, session: SessionDep) -> list[Score]:
+    """Every Score for a Subject's Assignments — one request to populate score entry."""
+    get_or_404(session, Class, class_id, "Class")
+    subject = get_or_404(session, Subject, subject_id, "Subject")
+    if subject.class_id != class_id:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Subject does not belong to this class.",
+        )
+    return list(
+        session.scalars(
+            select(Score)
+            .join(Assignment, Score.assignment_id == Assignment.id)
+            .where(Assignment.subject_id == subject_id)
+        )
+    )
 
 
 @router.put(

@@ -7,6 +7,7 @@ import { GradeLevelsSection } from '@/components/setup/GradeLevelsSection'
 import { GradingScaleSection } from '@/components/setup/GradingScaleSection'
 import { RosterSection } from '@/components/setup/RosterSection'
 import { SubjectsSection } from '@/components/setup/SubjectsSection'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { Button } from '@/components/ui/button'
 
 export function ClassDetailPage() {
@@ -35,6 +36,12 @@ export function ClassDetailPage() {
           <h1 className="text-2xl font-semibold">{klass.name}</h1>
         </div>
         <div className="flex gap-2">
+          <Link
+            to={`/classes/${klass.id}/scores`}
+            className={buttonVariants({ size: 'sm' })}
+          >
+            Enter scores →
+          </Link>
           <ClassDialog
             existing={klass}
             trigger={

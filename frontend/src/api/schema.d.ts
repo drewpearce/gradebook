@@ -201,6 +201,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/classes/{class_id}/subjects/{subject_id}/scores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Subject Scores
+         * @description Every Score for a Subject's Assignments — one request to populate score entry.
+         */
+        get: operations["list_subject_scores_classes__class_id__subjects__subject_id__scores_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/grade-levels/{grade_level_id}": {
         parameters: {
             query?: never;
@@ -1467,6 +1487,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RosterGrades"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_subject_scores_classes__class_id__subjects__subject_id__scores_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                class_id: string;
+                subject_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScoreRead"][];
                 };
             };
             /** @description Validation Error */
