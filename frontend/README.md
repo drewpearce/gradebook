@@ -50,7 +50,20 @@ npm run build         # tsc + vite build
 
 ## Layout
 
-- `src/api/` — generated types, the `openapi-fetch` client (Bearer + 401 handling), query hooks.
+- `src/api/` — generated types, the `openapi-fetch` client (Bearer + 401 handling), and one query/mutation hook module per entity.
 - `src/auth/` — token storage, `AuthProvider`, `useAuth`, the route guard.
-- `src/routes/` — pages (`LoginPage`, `HomePage`).
-- `src/components/ui/` — shadcn components; `src/components/Layout.tsx` — app shell.
+- `src/routes/` — pages (`LoginPage`, `HomePage`, `ClassDetailPage`, `ScoreEntryPage`, `GradesPage`).
+- `src/components/` — `setup/`, `scores/`, `grades/` feature components; `ui/` shadcn primitives; `Layout.tsx` app shell.
+- `src/lib/` — small shared helpers (`audience`, `format`, `active-id`, `errors`, `utils`).
+
+### Data-layer conventions
+
+Every write goes through `unwrap` (`api/client.ts`, throws on error) and
+`useInvalidatingMutation` (`api/mutations.ts`, invalidates query keys on success).
+The per-entity hook files (`classes.ts`, `students.ts`, `assignments.ts`, …) are
+kept **deliberately flat rather than folded into a generic CRUD factory**: a factory
+would have to take the endpoint path as a parameter, which forfeits `openapi-fetch`'s
+literal-path type inference (typed params + response). Flat, greppable files that
+each spell out their literal paths preserve full type safety — the priority here (see
+[`ADR-0003`](../docs/adr/0003-pyright-for-type-checking.md)'s heavily-typed stance) —
+at the cost of a little repetition.

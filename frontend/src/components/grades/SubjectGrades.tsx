@@ -15,14 +15,14 @@ type Student = components['schemas']['StudentRead']
 
 function StudentGradeRow({
   studentName,
-  subLabel,
+  gradeLevelLabel,
   grade,
   student,
   assignmentsByCategory,
   studentScores,
 }: {
   studentName: string
-  subLabel?: string
+  gradeLevelLabel?: string
   grade: GradeResponse
   student: Student
   assignmentsByCategory: Map<string, Assignment[]>
@@ -42,15 +42,15 @@ function StudentGradeRow({
       >
         <span className="text-sm">
           {studentName}
-          {subLabel ? (
-            <span className="ml-2 text-xs text-muted-foreground">{subLabel}</span>
+          {gradeLevelLabel ? (
+            <span className="ml-2 text-xs text-muted-foreground">{gradeLevelLabel}</span>
           ) : null}
         </span>
         {grade.is_incomplete ? (
           <Badge variant="warning">Incomplete</Badge>
         ) : (
           <Badge variant="success">
-            {grade.percent ? formatPercent(grade.percent) : ''} · {grade.letter}
+            {grade.percent !== null ? formatPercent(grade.percent) : ''} · {grade.letter}
           </Badge>
         )}
       </button>
@@ -79,7 +79,7 @@ function StudentGradeRow({
                     </span>
                   </span>
                   <span className="text-muted-foreground">
-                    {category.percent
+                    {category.percent !== null
                       ? `${formatPercent(category.percent)} · ${formatPoints(category.points_earned)}/${formatPoints(category.points_possible)}`
                       : '—'}
                   </span>
@@ -176,7 +176,9 @@ export function SubjectGrades({
           <StudentGradeRow
             key={grade.student_id}
             studentName={student.name}
-            subLabel={showGradeLevel ? gradeLevelName(student.grade_level_id) : undefined}
+            gradeLevelLabel={
+              showGradeLevel ? gradeLevelName(student.grade_level_id) : undefined
+            }
             grade={grade}
             student={student}
             assignmentsByCategory={assignmentsByCategory}

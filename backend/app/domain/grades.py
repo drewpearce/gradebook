@@ -55,10 +55,10 @@ class AssignmentScore:
 class GradeInput:
     """Everything needed to compute one Student's Grade in one Subject.
 
-    Preconditions the caller (#5) is responsible for: the weighted Categories'
-    weights sum to 100 (see ``compute_subject_grade``), and ``scale`` covers 0
-    (i.e. includes a band such as F at ``min_percent`` 0) so every numeric
-    percentage maps to a Letter.
+    Preconditions the caller is responsible for: the weighted Categories' weights
+    sum to 100 (see ``compute_subject_grade``), and ``scale`` covers 0 (includes a
+    band such as F at ``min_percent`` 0) so every numeric percentage maps to a
+    Letter.
     """
 
     student_grade_level_id: UUID
@@ -124,8 +124,11 @@ def compute_subject_grade(inp: GradeInput) -> SubjectGrade:
     Assignment percentages), so Assignments with larger ``max_points`` carry
     proportionally more weight within the Category.
 
-    Assumes the weighted Categories' weights sum to 100 (enforced upstream in #5)
-    and that ``inp.scale`` covers 0; see ``GradeInput``.
+    Assumes the weighted Categories' weights sum to 100; if they don't, the result
+    is the normalized weighted mean (see below). Enforcement is a caller concern:
+    ``app.services.grades`` surfaces a weights shortfall as an Incomplete reason
+    rather than blocking edits — a deliberate soft rule (see ADR-0002), not a
+    write-time block. Also assumes ``inp.scale`` covers 0; see ``GradeInput``.
     """
     applicable_by_category: dict[UUID, list[AssignmentScore]] = {}
     for assignment in inp.assignments:
@@ -174,8 +177,9 @@ def compute_subject_grade(inp: GradeInput) -> SubjectGrade:
     # weighted weights sum to 100, so this is ADR-0002's "no re-scaling" roll-up.
     # Dividing by their actual total (rather than a hardcoded 100) means a config
     # whose weights don't sum to 100 is normalized to a weighted mean instead of
-    # producing nonsense — but that is a data error #5 should reject upstream, not
-    # silently accept.
+    # producing nonsense. The API layer (app.services.grades) treats a non-100
+    # total as Incomplete rather than a numeric Grade — a deliberate soft rule
+    # (ADR-0002), not a write-time block.
     total_weight = sum((r.weight for r in weighted), Decimal(0))
     weighted_sum = sum(
         (r.percent * r.weight for r in weighted if r.percent is not None), Decimal(0)
