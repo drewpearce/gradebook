@@ -5,6 +5,7 @@ import { AuthProvider } from '@/auth/AuthProvider'
 import { ProtectedRoute } from '@/auth/ProtectedRoute'
 import { Layout } from '@/components/Layout'
 import { ClassDetailPage } from '@/routes/ClassDetailPage'
+import { GradesPage } from '@/routes/GradesPage'
 import { HomePage } from '@/routes/HomePage'
 import { LoginPage } from '@/routes/LoginPage'
 import { ScoreEntryPage } from '@/routes/ScoreEntryPage'
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
           { path: '/', element: <HomePage /> },
           { path: '/classes/:classId', element: <ClassDetailPage /> },
           { path: '/classes/:classId/scores', element: <ScoreEntryPage /> },
+          { path: '/classes/:classId/grades', element: <GradesPage /> },
         ],
       },
     ],

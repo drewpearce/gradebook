@@ -13,16 +13,10 @@ import { ScoreEntryList } from '@/components/scores/ScoreEntryList'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { pickActiveId } from '@/lib/active-id'
 
 type GradeLevel = components['schemas']['GradeLevelRead']
 type Student = components['schemas']['StudentRead']
-
-/** Pick the current id from state, falling back to the first option. */
-function useActiveId(options: { id: string }[], selected: string): string {
-  return options.some((option) => option.id === selected)
-    ? selected
-    : (options[0]?.id ?? '')
-}
 
 function SubjectScoring({
   classId,
@@ -41,7 +35,7 @@ function SubjectScoring({
 
   const assignments = assignmentsQuery.data ?? []
   const categories = categoriesQuery.data ?? []
-  const activeAssignmentId = useActiveId(assignments, selectedAssignment)
+  const activeAssignmentId = pickActiveId(assignments, selectedAssignment)
   const activeAssignment = assignments.find((a) => a.id === activeAssignmentId)
   const showGradeLevel = gradeLevels.length >= 2
 
@@ -135,7 +129,7 @@ export function ScoreEntryPage() {
   const [selectedSubject, setSelectedSubject] = useState('')
 
   const subjects = subjectsQuery.data ?? []
-  const activeSubjectId = useActiveId(subjects, selectedSubject)
+  const activeSubjectId = pickActiveId(subjects, selectedSubject)
 
   if (classQuery.isPending) {
     return <p className="text-muted-foreground">Loading…</p>
