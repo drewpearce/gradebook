@@ -2119,6 +2119,69 @@
         ]
       }
     },
+    "/classes/{class_id}/subjects/{subject_id}/scores": {
+      "get": {
+        "description": "Every Score for a Subject's Assignments \u2014 one request to populate score entry.",
+        "operationId": "list_subject_scores_classes__class_id__subjects__subject_id__scores_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "class_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Class Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Subject Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ScoreRead"
+                  },
+                  "title": "Response List Subject Scores Classes  Class Id  Subjects  Subject Id  Scores Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Subject Scores",
+        "tags": [
+          "scores"
+        ]
+      }
+    },
     "/grade-levels/{grade_level_id}": {
       "delete": {
         "operationId": "delete_grade_level_grade_levels__grade_level_id__delete",

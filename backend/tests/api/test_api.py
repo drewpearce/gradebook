@@ -259,3 +259,25 @@ def test_grading_scale_bands_sorted_high_to_low(client: TestClient) -> None:
     mins = [float(b["min_percent"]) for b in bands]
     assert mins == sorted(mins, reverse=True)
     assert bands[0]["letter"] == "A"
+
+
+def test_list_subject_scores_returns_all_scores_for_the_subject(client: TestClient) -> None:
+    s = _mixed_audience_setup(client)
+    _score(client, s["alice"], s["hw1"], "8")
+    _score(client, s["bob"], s["hw1"], "7")
+    _score(client, s["bob"], s["hw2"], "10")
+
+    r = client.get(f"/classes/{s['class_id']}/subjects/{s['subject']}/scores")
+    assert r.status_code == 200
+    scores = r.json()
+    pairs = {(x["student_id"], x["assignment_id"]): x["points_earned"] for x in scores}
+    assert len(pairs) == 3
+    assert pairs[(s["alice"], s["hw1"])] == "8.00"
+    assert pairs[(s["bob"], s["hw2"])] == "10.00"
+
+
+def test_list_subject_scores_rejects_subject_outside_class(client: TestClient) -> None:
+    s = _mixed_audience_setup(client)
+    other_class = _class(client, "Other")
+    r = client.get(f"/classes/{other_class}/subjects/{s['subject']}/scores")
+    assert r.status_code == 422
