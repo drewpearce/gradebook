@@ -5,10 +5,12 @@ on:
     branches: [main]
     paths:
       - 'backend/**'
+      - 'frontend/openapi.json'
       - '.github/workflows/ci.yml'
   pull_request:
     paths:
       - 'backend/**'
+      - 'frontend/openapi.json'
       - '.github/workflows/ci.yml'
 
 concurrency:
@@ -61,5 +63,16 @@ jobs:
       - name: Apply migrations
         run: uv run alembic upgrade head
 
+      - name: Models match migrations (alembic check)
+        run: uv run alembic check
+
+      - name: Migrations round-trip (downgrade base, upgrade head)
+        run: uv run alembic downgrade base && uv run alembic upgrade head
+
+      - name: OpenAPI contract matches frontend/openapi.json
+        run: |
+          uv run python scripts/export_openapi.py "$RUNNER_TEMP/openapi.json"
+          diff -u ../frontend/openapi.json "$RUNNER_TEMP/openapi.json"
+
       - name: Tests (pytest)
-        run: uv run pytest
+        run: uv run pytest --cov=app --cov-report=term-missing

@@ -93,15 +93,6 @@ describe('StudentGradeRow', () => {
     expect(screen.queryByText('blank — not counted')).not.toBeInTheDocument()
   })
 
-  it('does not list an assignment outside the student audience', async () => {
-    await renderRow({
-      assignmentsByCategory: new Map([
-        ['category-1', [assignment({ audience_grade_level_ids: ['gl-other'] })]],
-      ]),
-    })
-    expect(screen.queryByText('Quiz 1')).not.toBeInTheDocument()
-  })
-
   it('lists an in-audience assignment but not an out-of-audience one', async () => {
     await renderRow({
       assignmentsByCategory: new Map([
