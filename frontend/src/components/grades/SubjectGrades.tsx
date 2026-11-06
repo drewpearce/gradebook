@@ -13,7 +13,7 @@ type GradeLevel = components['schemas']['GradeLevelRead']
 type GradeResponse = components['schemas']['GradeResponse']
 type Student = components['schemas']['StudentRead']
 
-function StudentGradeRow({
+export function StudentGradeRow({
   studentName,
   gradeLevelLabel,
   grade,
