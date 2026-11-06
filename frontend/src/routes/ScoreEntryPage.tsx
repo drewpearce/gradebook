@@ -8,6 +8,7 @@ import { useGradeLevels } from '@/api/grade-levels'
 import type { components } from '@/api/schema'
 import { useStudents } from '@/api/students'
 import { useSubjects } from '@/api/subjects'
+import { QueryState } from '@/components/QueryState'
 import { AssignmentDialog } from '@/components/scores/AssignmentDialog'
 import { ScoreEntryList } from '@/components/scores/ScoreEntryList'
 import { Button } from '@/components/ui/button'
@@ -44,6 +45,7 @@ function SubjectScoring({
       subjectId={subjectId}
       categories={categories}
       gradeLevels={gradeLevels}
+      onCreated={(created) => setSelectedAssignment(created.id)}
       trigger={
         <Button size="sm" disabled={categories.length === 0}>
           New assignment
@@ -52,6 +54,9 @@ function SubjectScoring({
     />
   )
 
+  if (assignmentsQuery.data === undefined || categoriesQuery.data === undefined) {
+    return <QueryState queries={[assignmentsQuery, categoriesQuery]}>{null}</QueryState>
+  }
   if (categories.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -150,38 +155,40 @@ export function ScoreEntryPage() {
         <h1 className="text-2xl font-semibold">Enter scores</h1>
       </div>
 
-      {subjects.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Add a subject to this class first, then create assignments and enter scores.
-        </p>
-      ) : (
-        <div className="space-y-4">
-          {subjects.length >= 2 ? (
-            <div className="grid max-w-xs gap-2">
-              <Label htmlFor="subject-picker">Subject</Label>
-              <Select
-                id="subject-picker"
-                value={activeSubjectId}
-                onChange={(event) => setSelectedSubject(event.target.value)}
-              >
-                {subjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          ) : null}
+      <QueryState queries={[subjectsQuery, studentsQuery, gradeLevelsQuery]}>
+        {subjects.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Add a subject to this class first, then create assignments and enter scores.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {subjects.length >= 2 ? (
+              <div className="grid max-w-xs gap-2">
+                <Label htmlFor="subject-picker">Subject</Label>
+                <Select
+                  id="subject-picker"
+                  value={activeSubjectId}
+                  onChange={(event) => setSelectedSubject(event.target.value)}
+                >
+                  {subjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : null}
 
-          <SubjectScoring
-            key={activeSubjectId}
-            classId={id}
-            subjectId={activeSubjectId}
-            students={studentsQuery.data ?? []}
-            gradeLevels={gradeLevelsQuery.data ?? []}
-          />
-        </div>
-      )}
+            <SubjectScoring
+              key={activeSubjectId}
+              classId={id}
+              subjectId={activeSubjectId}
+              students={studentsQuery.data ?? []}
+              gradeLevels={gradeLevelsQuery.data ?? []}
+            />
+          </div>
+        )}
+      </QueryState>
     </div>
   )
 }

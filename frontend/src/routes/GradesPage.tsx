@@ -5,6 +5,7 @@ import { useClass } from '@/api/classes'
 import { useGradeLevels } from '@/api/grade-levels'
 import { useStudents } from '@/api/students'
 import { useSubjects } from '@/api/subjects'
+import { QueryState } from '@/components/QueryState'
 import { SubjectGrades } from '@/components/grades/SubjectGrades'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
@@ -41,38 +42,40 @@ export function GradesPage() {
         <h1 className="text-2xl font-semibold">Grades</h1>
       </div>
 
-      {subjects.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Add a subject to this class first to see grades.
-        </p>
-      ) : (
-        <div className="space-y-4">
-          {subjects.length >= 2 ? (
-            <div className="grid max-w-xs gap-2">
-              <Label htmlFor="grades-subject-picker">Subject</Label>
-              <Select
-                id="grades-subject-picker"
-                value={activeSubjectId}
-                onChange={(event) => setSelectedSubject(event.target.value)}
-              >
-                {subjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          ) : null}
+      <QueryState queries={[subjectsQuery, studentsQuery, gradeLevelsQuery]}>
+        {subjects.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Add a subject to this class first to see grades.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {subjects.length >= 2 ? (
+              <div className="grid max-w-xs gap-2">
+                <Label htmlFor="grades-subject-picker">Subject</Label>
+                <Select
+                  id="grades-subject-picker"
+                  value={activeSubjectId}
+                  onChange={(event) => setSelectedSubject(event.target.value)}
+                >
+                  {subjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : null}
 
-          <SubjectGrades
-            key={activeSubjectId}
-            classId={id}
-            subjectId={activeSubjectId}
-            students={studentsQuery.data ?? []}
-            gradeLevels={gradeLevelsQuery.data ?? []}
-          />
-        </div>
-      )}
+            <SubjectGrades
+              key={activeSubjectId}
+              classId={id}
+              subjectId={activeSubjectId}
+              students={studentsQuery.data ?? []}
+              gradeLevels={gradeLevelsQuery.data ?? []}
+            />
+          </div>
+        )}
+      </QueryState>
     </div>
   )
 }

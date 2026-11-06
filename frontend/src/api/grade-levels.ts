@@ -20,39 +20,33 @@ export function useGradeLevels(classId: string) {
 }
 
 export function useCreateGradeLevel(classId: string) {
-  return useInvalidatingMutation(
-    (body: GradeLevelCreate) =>
-      unwrap(
-        client.POST('/classes/{class_id}/grade-levels', {
-          params: { path: { class_id: classId } },
-          body,
-        }),
-      ),
-    [['grade-levels', classId]],
+  return useInvalidatingMutation((body: GradeLevelCreate) =>
+    unwrap(
+      client.POST('/classes/{class_id}/grade-levels', {
+        params: { path: { class_id: classId } },
+        body,
+      }),
+    ),
   )
 }
 
-export function useUpdateGradeLevel(classId: string) {
-  return useInvalidatingMutation(
-    ({ id, body }: { id: string; body: GradeLevelUpdate }) =>
-      unwrap(
-        client.PATCH('/grade-levels/{grade_level_id}', {
-          params: { path: { grade_level_id: id } },
-          body,
-        }),
-      ),
-    [['grade-levels', classId]],
+export function useUpdateGradeLevel() {
+  return useInvalidatingMutation(({ id, body }: { id: string; body: GradeLevelUpdate }) =>
+    unwrap(
+      client.PATCH('/grade-levels/{grade_level_id}', {
+        params: { path: { grade_level_id: id } },
+        body,
+      }),
+    ),
   )
 }
 
-export function useDeleteGradeLevel(classId: string) {
-  return useInvalidatingMutation(
-    (id: string) =>
-      unwrap(
-        client.DELETE('/grade-levels/{grade_level_id}', {
-          params: { path: { grade_level_id: id } },
-        }),
-      ),
-    [['grade-levels', classId]],
+export function useDeleteGradeLevel() {
+  return useInvalidatingMutation((id: string) =>
+    unwrap(
+      client.DELETE('/grade-levels/{grade_level_id}', {
+        params: { path: { grade_level_id: id } },
+      }),
+    ),
   )
 }

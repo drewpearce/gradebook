@@ -10,7 +10,7 @@ import { HomePage } from '@/routes/HomePage'
 import { LoginPage } from '@/routes/LoginPage'
 import { ScoreEntryPage } from '@/routes/ScoreEntryPage'
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1 } } })
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },

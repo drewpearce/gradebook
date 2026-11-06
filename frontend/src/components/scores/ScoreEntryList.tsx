@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import { useDeleteScore, useSubjectScores, useUpsertScore } from '@/api/scores'
 import type { components } from '@/api/schema'
+import { QueryState } from '@/components/QueryState'
 import { Input } from '@/components/ui/input'
 import { assignmentAppliesToStudent } from '@/lib/audience'
 import { formatPoints } from '@/lib/format'
@@ -10,11 +11,14 @@ type Assignment = components['schemas']['AssignmentRead']
 type GradeLevel = components['schemas']['GradeLevelRead']
 type Student = components['schemas']['StudentRead']
 
-function ScoreRow({
+const SCORE_PATTERN = /^(\d+(\.\d{0,2})?|\.\d{1,2})$/
+
+export function ScoreRow({
   label,
   subLabel,
   persisted,
   maxPoints,
+  disabled,
   onSave,
   onClear,
 }: {
@@ -22,37 +26,51 @@ function ScoreRow({
   subLabel?: string
   persisted: string | undefined
   maxPoints: string
+  disabled?: boolean
   onSave: (value: string) => Promise<unknown>
   onClear: () => Promise<unknown>
 }) {
   const display = persisted === undefined ? '' : formatPoints(persisted)
   const [value, setValue] = useState(display)
   const [error, setError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const errorId = useId()
 
-  // Re-sync when the persisted score changes (e.g. after a save refetch).
-  useEffect(() => setValue(display), [display])
+  // Re-sync when the persisted score changes (e.g. after a save refetch),
+  // but never overwrite what the teacher is typing.
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) {
+      setValue(display)
+    }
+  }, [display])
 
-  function commit() {
+  async function commit() {
     const trimmed = value.trim()
     if (trimmed === display) {
       setError(null)
       return
     }
-    if (trimmed === '') {
-      setError(null)
-      if (persisted !== undefined) {
-        void onClear() // blank ⇒ excluded (delete the Score), distinct from an explicit 0
+    try {
+      if (trimmed === '') {
+        setError(null)
+        if (persisted !== undefined) {
+          await onClear() // blank ⇒ excluded (delete the Score), distinct from an explicit 0
+        }
+        return
       }
-      return
+      if (!SCORE_PATTERN.test(trimmed)) {
+        setError('Enter a number ≥ 0 with at most 2 decimals')
+        return
+      }
+      setError(null)
+      await onSave(trimmed)
+    } catch {
+      setError('Not saved. Try again.')
     }
-    const num = Number(trimmed)
-    if (!Number.isFinite(num) || num < 0) {
-      setError('Enter a number ≥ 0')
-      return
-    }
-    setError(null)
-    void onSave(trimmed)
   }
+
+  const aboveMax =
+    SCORE_PATTERN.test(value.trim()) && Number(value.trim()) > Number(maxPoints)
 
   return (
     <li className="flex items-center justify-between py-2">
@@ -64,22 +82,44 @@ function ScoreRow({
       </span>
       <div className="flex items-center gap-2">
         <Input
+          ref={inputRef}
           className="w-24 text-right"
           inputMode="decimal"
-          placeholder="—"
+          placeholder={disabled ? '…' : '—'}
+          aria-label={`${label} score`}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          disabled={disabled}
           value={value}
           onChange={(event) => setValue(event.target.value)}
-          onBlur={commit}
+          onBlur={() => void commit()}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
-              event.currentTarget.blur()
+              // Moving focus blurs this input, which saves it.
+              const next = event.currentTarget
+                .closest('li')
+                ?.nextElementSibling?.querySelector('input')
+              if (next) {
+                next.focus()
+              } else {
+                event.currentTarget.blur()
+              }
             }
           }}
         />
         <span className="w-16 text-xs text-muted-foreground">
           / {formatPoints(maxPoints)}
         </span>
-        {error ? <span className="text-xs text-destructive">{error}</span> : null}
+        {aboveMax ? (
+          <span className="text-xs text-amber-700">
+            Above max ({formatPoints(maxPoints)})
+          </span>
+        ) : null}
+        {error ? (
+          <span id={errorId} className="text-xs text-destructive">
+            {error}
+          </span>
+        ) : null}
       </div>
     </li>
   )
@@ -101,8 +141,8 @@ export function ScoreEntryList({
   showGradeLevel: boolean
 }) {
   const scoresQuery = useSubjectScores(classId, subjectId)
-  const upsert = useUpsertScore(subjectId)
-  const remove = useDeleteScore(subjectId)
+  const upsert = useUpsertScore()
+  const remove = useDeleteScore()
 
   const applicable = students.filter((student) =>
     assignmentAppliesToStudent(student, assignment),
@@ -118,8 +158,8 @@ export function ScoreEntryList({
     return gradeLevels.find((level) => level.id === id)?.name ?? ''
   }
 
-  if (scoresQuery.error) {
-    return <p className="text-sm text-destructive">Failed to load scores.</p>
+  if (scoresQuery.isError) {
+    return <QueryState queries={[scoresQuery]}>{null}</QueryState>
   }
   if (applicable.length === 0) {
     return (
@@ -139,6 +179,7 @@ export function ScoreEntryList({
             subLabel={showGradeLevel ? gradeLevelName(student.grade_level_id) : undefined}
             persisted={scoreByStudent.get(student.id)}
             maxPoints={assignment.max_points}
+            disabled={scoresQuery.isPending}
             onSave={(value) =>
               upsert.mutateAsync({
                 studentId: student.id,
@@ -153,7 +194,7 @@ export function ScoreEntryList({
         ))}
       </ul>
       <p className="mt-3 text-xs text-muted-foreground">
-        Leave blank to exclude an assignment; enter 0 to count it as zero.
+        Blank = not scored yet (not counted). 0 = scored as zero.
       </p>
     </div>
   )

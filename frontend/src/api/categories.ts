@@ -20,39 +20,33 @@ export function useCategories(subjectId: string) {
 }
 
 export function useCreateCategory(subjectId: string) {
-  return useInvalidatingMutation(
-    (body: CategoryCreate) =>
-      unwrap(
-        client.POST('/subjects/{subject_id}/categories', {
-          params: { path: { subject_id: subjectId } },
-          body,
-        }),
-      ),
-    [['categories', subjectId]],
+  return useInvalidatingMutation((body: CategoryCreate) =>
+    unwrap(
+      client.POST('/subjects/{subject_id}/categories', {
+        params: { path: { subject_id: subjectId } },
+        body,
+      }),
+    ),
   )
 }
 
-export function useUpdateCategory(subjectId: string) {
-  return useInvalidatingMutation(
-    ({ id, body }: { id: string; body: CategoryUpdate }) =>
-      unwrap(
-        client.PATCH('/categories/{category_id}', {
-          params: { path: { category_id: id } },
-          body,
-        }),
-      ),
-    [['categories', subjectId]],
+export function useUpdateCategory() {
+  return useInvalidatingMutation(({ id, body }: { id: string; body: CategoryUpdate }) =>
+    unwrap(
+      client.PATCH('/categories/{category_id}', {
+        params: { path: { category_id: id } },
+        body,
+      }),
+    ),
   )
 }
 
-export function useDeleteCategory(subjectId: string) {
-  return useInvalidatingMutation(
-    (id: string) =>
-      unwrap(
-        client.DELETE('/categories/{category_id}', {
-          params: { path: { category_id: id } },
-        }),
-      ),
-    [['categories', subjectId]],
+export function useDeleteCategory() {
+  return useInvalidatingMutation((id: string) =>
+    unwrap(
+      client.DELETE('/categories/{category_id}', {
+        params: { path: { category_id: id } },
+      }),
+    ),
   )
 }

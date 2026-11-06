@@ -102,6 +102,68 @@ describe('StudentGradeRow', () => {
     expect(screen.queryByText('Quiz 1')).not.toBeInTheDocument()
   })
 
+  it('lists an in-audience assignment but not an out-of-audience one', async () => {
+    await renderRow({
+      assignmentsByCategory: new Map([
+        [
+          'category-1',
+          [
+            assignment({ id: 'a1', name: 'Quiz 1', audience_grade_level_ids: ['gl-1'] }),
+            assignment({
+              id: 'a2',
+              name: 'Quiz 2',
+              audience_grade_level_ids: ['gl-other'],
+            }),
+          ],
+        ],
+      ]),
+    })
+    expect(screen.getByText('Quiz 1')).toBeInTheDocument()
+    expect(screen.queryByText('Quiz 2')).not.toBeInTheDocument()
+  })
+
+  it('names the empty category under the Incomplete badge', async () => {
+    await renderRow(
+      {
+        grade: gradeResponse({
+          is_incomplete: true,
+          categories: [categoryBreakdown({ category_id: 'c2', name: 'Tests' })],
+          incomplete_reasons: [
+            { code: 'empty_category', category_id: 'c2', message: 'Tests is empty' },
+          ],
+        }),
+      },
+      false,
+    )
+    expect(screen.getByText('Missing: Tests')).toBeInTheDocument()
+  })
+
+  it('says the weights do not total 100% under the Incomplete badge', async () => {
+    await renderRow(
+      {
+        grade: gradeResponse({
+          is_incomplete: true,
+          incomplete_reasons: [{ code: 'weights_not_100', message: 'x' }],
+        }),
+      },
+      false,
+    )
+    expect(screen.getByText('Weights do not total 100%')).toBeInTheDocument()
+  })
+
+  it('shows no reason line for a complete grade', async () => {
+    await renderRow({}, false)
+    expect(screen.queryByText(/Missing:|Weights do not/)).not.toBeInTheDocument()
+  })
+
+  it('shows Loading instead of the breakdown while details load', async () => {
+    await renderRow({
+      detailQueries: [{ isPending: true, isError: false, refetch: () => {} }],
+    })
+    expect(screen.getByText('Loading…')).toBeInTheDocument()
+    expect(screen.queryByText('No assignments apply.')).not.toBeInTheDocument()
+  })
+
   it('shows empty text for a category with no applicable assignment', async () => {
     await renderRow()
     expect(screen.getByText('No assignments apply.')).toBeInTheDocument()

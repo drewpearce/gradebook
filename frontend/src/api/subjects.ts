@@ -20,37 +20,31 @@ export function useSubjects(classId: string) {
 }
 
 export function useCreateSubject(classId: string) {
-  return useInvalidatingMutation(
-    (body: SubjectCreate) =>
-      unwrap(
-        client.POST('/classes/{class_id}/subjects', {
-          params: { path: { class_id: classId } },
-          body,
-        }),
-      ),
-    [['subjects', classId]],
+  return useInvalidatingMutation((body: SubjectCreate) =>
+    unwrap(
+      client.POST('/classes/{class_id}/subjects', {
+        params: { path: { class_id: classId } },
+        body,
+      }),
+    ),
   )
 }
 
-export function useUpdateSubject(classId: string) {
-  return useInvalidatingMutation(
-    ({ id, body }: { id: string; body: SubjectUpdate }) =>
-      unwrap(
-        client.PATCH('/subjects/{subject_id}', {
-          params: { path: { subject_id: id } },
-          body,
-        }),
-      ),
-    [['subjects', classId]],
+export function useUpdateSubject() {
+  return useInvalidatingMutation(({ id, body }: { id: string; body: SubjectUpdate }) =>
+    unwrap(
+      client.PATCH('/subjects/{subject_id}', {
+        params: { path: { subject_id: id } },
+        body,
+      }),
+    ),
   )
 }
 
-export function useDeleteSubject(classId: string) {
-  return useInvalidatingMutation(
-    (id: string) =>
-      unwrap(
-        client.DELETE('/subjects/{subject_id}', { params: { path: { subject_id: id } } }),
-      ),
-    [['subjects', classId]],
+export function useDeleteSubject() {
+  return useInvalidatingMutation((id: string) =>
+    unwrap(
+      client.DELETE('/subjects/{subject_id}', { params: { path: { subject_id: id } } }),
+    ),
   )
 }

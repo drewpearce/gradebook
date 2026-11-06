@@ -25,31 +25,26 @@ export function useClass(classId: string) {
 }
 
 export function useCreateClass() {
-  return useInvalidatingMutation(
-    (body: ClassCreate) => unwrap(client.POST('/classes', { body })),
-    [['classes']],
+  return useInvalidatingMutation((body: ClassCreate) =>
+    unwrap(client.POST('/classes', { body })),
   )
 }
 
 export function useUpdateClass(classId: string) {
-  return useInvalidatingMutation(
-    (body: ClassUpdate) =>
-      unwrap(
-        client.PATCH('/classes/{class_id}', {
-          params: { path: { class_id: classId } },
-          body,
-        }),
-      ),
-    [['classes'], ['class', classId]],
+  return useInvalidatingMutation((body: ClassUpdate) =>
+    unwrap(
+      client.PATCH('/classes/{class_id}', {
+        params: { path: { class_id: classId } },
+        body,
+      }),
+    ),
   )
 }
 
 export function useDeleteClass() {
-  return useInvalidatingMutation(
-    (classId: string) =>
-      unwrap(
-        client.DELETE('/classes/{class_id}', { params: { path: { class_id: classId } } }),
-      ),
-    [['classes']],
+  return useInvalidatingMutation((classId: string) =>
+    unwrap(
+      client.DELETE('/classes/{class_id}', { params: { path: { class_id: classId } } }),
+    ),
   )
 }

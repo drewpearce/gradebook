@@ -18,12 +18,14 @@ export function AssignmentDialog({
   gradeLevels,
   assignment,
   trigger,
+  onCreated,
 }: {
   subjectId: string
   categories: Category[]
   gradeLevels: GradeLevel[]
   assignment?: Assignment
   trigger: ReactNode
+  onCreated?: (assignment: Assignment) => void
 }) {
   const { open, setOpen, pending, error, run } = useDialogForm()
   const [name, setName] = useState('')
@@ -31,7 +33,7 @@ export function AssignmentDialog({
   const [categoryId, setCategoryId] = useState('')
   const [audienceIds, setAudienceIds] = useState<string[]>([])
   const create = useCreateAssignment(subjectId)
-  const update = useUpdateAssignment(subjectId)
+  const update = useUpdateAssignment()
 
   useEffect(() => {
     if (open) {
@@ -57,7 +59,7 @@ export function AssignmentDialog({
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    void run(() => {
+    void run(async () => {
       const body = {
         name,
         max_points: maxPoints,
@@ -67,7 +69,7 @@ export function AssignmentDialog({
       if (assignment) {
         return update.mutateAsync({ id: assignment.id, body })
       }
-      return create.mutateAsync(body)
+      onCreated?.(await create.mutateAsync(body))
     })
   }
 
