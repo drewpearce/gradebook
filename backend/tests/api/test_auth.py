@@ -22,7 +22,7 @@ def _forge_token(sub: UUID, *, secret: str | None = None, expires_in_minutes: in
     return jwt.encode(
         {"sub": str(sub), "iat": now, "exp": now + dt.timedelta(minutes=expires_in_minutes)},
         secret or settings.secret_key,
-        algorithm=settings.jwt_algorithm,
+        algorithm="HS256",
     )
 
 
@@ -95,7 +95,7 @@ def test_token_for_unknown_teacher_is_rejected(anon_client: TestClient) -> None:
 def _forge_claims(claims: dict[str, object]) -> str:
     now = dt.datetime.now(dt.UTC)
     full = {"iat": now, "exp": now + dt.timedelta(minutes=60), **claims}
-    return jwt.encode(full, settings.secret_key, algorithm=settings.jwt_algorithm)
+    return jwt.encode(full, settings.secret_key, algorithm="HS256")
 
 
 def test_token_with_non_uuid_subject_is_rejected(anon_client: TestClient) -> None:
@@ -129,3 +129,15 @@ def test_every_protected_route_rejects_a_missing_token(
 ) -> None:
     url = path.format_map(defaultdict(uuid4))
     assert anon_client.request(method, url).status_code == 401
+
+
+def test_login_with_a_password_over_72_bytes_is_401(
+    anon_client: TestClient, teacher: Teacher, teacher_credentials: tuple[str, str]
+) -> None:
+    username, _ = teacher_credentials
+    assert _login(anon_client, username, "x" * 100).status_code == 401
+
+
+def test_token_without_expiry_is_rejected(anon_client: TestClient, teacher: Teacher) -> None:
+    token = jwt.encode({"sub": str(teacher.id)}, settings.secret_key, algorithm="HS256")
+    assert anon_client.get("/classes", headers=_auth(token)).status_code == 401

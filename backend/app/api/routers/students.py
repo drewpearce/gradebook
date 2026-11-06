@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import SessionDep, commit_or_conflict, get_or_404
+from app.api.deps import SessionDep, apply_patch, commit_or_conflict, get_or_404
 from app.models import Class, GradeLevel, Student
 from app.schemas.roster import StudentCreate, StudentRead, StudentUpdate
 
@@ -57,8 +57,7 @@ def update_student(student_id: UUID, payload: StudentUpdate, session: SessionDep
     data = payload.model_dump(exclude_unset=True)
     if data.get("grade_level_id") is not None:
         _validate_grade_level(session, student.class_id, data["grade_level_id"])
-    for field, value in data.items():
-        setattr(student, field, value)
+    apply_patch(student, data)
     commit_or_conflict(session)
     session.refresh(student)
     return student

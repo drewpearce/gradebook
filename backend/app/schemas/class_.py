@@ -4,13 +4,15 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.types import NoNulStr
+
 
 class ClassCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=120)
+    name: NoNulStr = Field(min_length=1, max_length=120)
 
 
 class ClassUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=120)
+    name: NoNulStr | None = Field(default=None, min_length=1, max_length=120)
 
 
 class ClassRead(BaseModel):
@@ -23,13 +25,13 @@ class ClassRead(BaseModel):
 
 
 class GradeLevelCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=40)
-    position: int = 0
+    name: NoNulStr = Field(min_length=1, max_length=40)
+    position: int = Field(default=0, ge=0, le=10_000)
 
 
 class GradeLevelUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=40)
-    position: int | None = None
+    name: NoNulStr | None = Field(default=None, min_length=1, max_length=40)
+    position: int | None = Field(default=None, ge=0, le=10_000)
 
 
 class GradeLevelRead(BaseModel):
@@ -44,8 +46,8 @@ class GradeLevelRead(BaseModel):
 
 
 class GradeBandInput(BaseModel):
-    letter: str = Field(min_length=1, max_length=4)
-    min_percent: Decimal = Field(ge=0, le=100)
+    letter: NoNulStr = Field(min_length=1, max_length=4)
+    min_percent: Decimal = Field(ge=0, le=100, max_digits=5, decimal_places=2)
 
 
 class GradeBandRead(BaseModel):

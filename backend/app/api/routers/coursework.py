@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.api.deps import SessionDep, commit_or_conflict, get_or_404
+from app.api.deps import SessionDep, apply_patch, commit_or_conflict, get_or_404
 from app.models import Assignment, Category, Class, GradeLevel, Subject
 from app.schemas.coursework import (
     AssignmentCreate,
@@ -55,8 +55,7 @@ def get_subject(subject_id: UUID, session: SessionDep) -> Subject:
 @router.patch("/subjects/{subject_id}", response_model=SubjectRead)
 def update_subject(subject_id: UUID, payload: SubjectUpdate, session: SessionDep) -> Subject:
     subject = get_or_404(session, Subject, subject_id, "Subject")
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(subject, field, value)
+    apply_patch(subject, payload.model_dump(exclude_unset=True))
     commit_or_conflict(session)
     session.refresh(subject)
     return subject
@@ -98,8 +97,7 @@ def list_categories(subject_id: UUID, session: SessionDep) -> list[Category]:
 @router.patch("/categories/{category_id}", response_model=CategoryRead)
 def update_category(category_id: UUID, payload: CategoryUpdate, session: SessionDep) -> Category:
     category = get_or_404(session, Category, category_id, "Category")
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(category, field, value)
+    apply_patch(category, payload.model_dump(exclude_unset=True))
     commit_or_conflict(session)
     session.refresh(category)
     return category
@@ -210,12 +208,15 @@ def update_assignment(
     data = payload.model_dump(exclude_unset=True)
     if data.get("category_id") is not None:
         _validate_category_in_subject(session, assignment.subject_id, data["category_id"])
+    audience = None
     if "audience_grade_level_ids" in data:
-        assignment.audience = _resolve_audience(
-            session, assignment.subject, data.pop("audience_grade_level_ids")
+        # null and [] both clear the Audience (empty Audience = every Grade Level).
+        audience = _resolve_audience(
+            session, assignment.subject, data.pop("audience_grade_level_ids") or []
         )
-    for field, value in data.items():
-        setattr(assignment, field, value)
+    apply_patch(assignment, data)
+    if audience is not None:
+        assignment.audience = audience
     commit_or_conflict(session)
     session.refresh(assignment)
     return _assignment_read(assignment)

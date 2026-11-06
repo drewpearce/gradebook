@@ -416,3 +416,106 @@ def test_list_subject_scores_rejects_subject_outside_class(client: TestClient) -
     other_class = _class(client, "Other")
     r = client.get(f"/classes/{other_class}/subjects/{s['subject']}/scores")
     assert r.status_code == 422
+
+
+# --- #22 hardening (R-03, R-04, R-05, R-13, R-14) ---------------------------
+
+
+def test_saving_the_grading_scale_twice_returns_the_new_cutoffs(client: TestClient) -> None:
+    class_id = _class(client)
+    _scale(client, class_id)
+    changed = [
+        {**band, "min_percent": "85"} if band["letter"] == "B" else band for band in _STANDARD_SCALE
+    ]
+
+    r = client.put(f"/classes/{class_id}/grading-scale", json={"bands": changed})
+
+    assert r.status_code == 200, r.text
+    cutoffs = {band["letter"]: band["min_percent"] for band in r.json()["bands"]}
+    assert cutoffs["B"] == "85.00"
+    assert cutoffs["A"] == "90.00"
+
+
+def test_grading_scale_without_a_band_at_zero_is_rejected(client: TestClient) -> None:
+    class_id = _class(client)
+    bands = [{"letter": "A", "min_percent": "90"}, {"letter": "D", "min_percent": "60"}]
+
+    r = client.put(f"/classes/{class_id}/grading-scale", json={"bands": bands})
+
+    assert r.status_code == 422
+    assert r.json()["detail"] == "The grading scale needs a band that starts at 0%."
+
+
+def test_score_of_ten_thousand_is_rejected_not_500(client: TestClient) -> None:
+    s = _mixed_audience_setup(client)
+    assert _score(client, s["alice"], s["hw1"], "10000").status_code == 422
+
+
+def test_score_with_three_decimals_is_rejected(client: TestClient) -> None:
+    s = _mixed_audience_setup(client)
+    assert _score(client, s["alice"], s["hw1"], "8.555").status_code == 422
+
+
+def test_score_of_zero_is_still_accepted(client: TestClient) -> None:
+    s = _mixed_audience_setup(client)
+    assert _score(client, s["alice"], s["hw1"], "0").status_code == 200
+
+
+def test_category_weight_with_three_decimals_is_rejected(client: TestClient) -> None:
+    subject = _subject(client, _class(client))
+    r = client.post(f"/subjects/{subject}/categories", json={"name": "HW", "weight": "33.333"})
+    assert r.status_code == 422
+
+
+def test_name_with_a_nul_character_is_rejected(client: TestClient) -> None:
+    r = client.post("/classes", json={"name": "Room\x005"})
+    assert r.status_code == 422
+
+
+def test_grade_level_position_out_of_range_is_rejected(client: TestClient) -> None:
+    class_id = _class(client)
+    r = client.post(f"/classes/{class_id}/grade-levels", json={"name": "1st", "position": 2**31})
+    assert r.status_code == 422
+
+
+def test_delete_grade_level_in_an_assignment_audience_is_blocked(client: TestClient) -> None:
+    s = _mixed_audience_setup(client)
+    empty = _grade_level(client, s["class_id"], "3rd", 3)
+    r = client.post(
+        f"/subjects/{s['subject']}/assignments",
+        json={
+            "name": "HW3",
+            "category_id": s["homework"],
+            "max_points": "10",
+            "audience_grade_level_ids": [empty],
+        },
+    )
+    assert r.status_code == 201, r.text
+    assignment_id = r.json()["id"]
+
+    blocked = client.delete(f"/grade-levels/{empty}")
+
+    assert blocked.status_code == 409
+    assert blocked.json()["detail"] == "Remove this grade level from assignment audiences first."
+    audience = client.get(f"/assignments/{assignment_id}").json()["audience_grade_level_ids"]
+    assert audience == [empty]
+
+
+def test_patch_class_name_null_is_422(client: TestClient) -> None:
+    class_id = _class(client)
+    r = client.patch(f"/classes/{class_id}", json={"name": None})
+    assert r.status_code == 422
+    assert r.json()["detail"] == "name cannot be null"
+
+
+def test_patch_assignment_category_null_is_422(client: TestClient) -> None:
+    s = _mixed_audience_setup(client)
+    r = client.patch(f"/assignments/{s['hw2']}", json={"category_id": None})
+    assert r.status_code == 422
+
+
+def test_patch_assignment_audience_null_clears_the_audience(client: TestClient) -> None:
+    s = _mixed_audience_setup(client)
+    r = client.patch(f"/assignments/{s['hw2']}", json={"audience_grade_level_ids": None})
+    assert r.status_code == 200, r.text
+    assert r.json()["audience_grade_level_ids"] == []
