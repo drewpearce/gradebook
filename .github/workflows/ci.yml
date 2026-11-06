@@ -22,14 +22,14 @@ jobs:
       run:
         working-directory: backend
     env:
-      DATABASE_URL: postgresql+psycopg://gradebook:gradebook@localhost:5432/gradebook
+      DATABASE_URL: postgresql+psycopg://gradebook:gradebook@localhost:5432/gradebook_test
     services:
       postgres:
         image: postgres:16
         env:
           POSTGRES_USER: gradebook
           POSTGRES_PASSWORD: gradebook
-          POSTGRES_DB: gradebook
+          POSTGRES_DB: gradebook_test
         ports:
           - 5432:5432
         options: >-

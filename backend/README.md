@@ -61,8 +61,15 @@ curl localhost:8000/health   # -> {"status":"ok"}
 uv run ruff check            # lint
 uv run ruff format --check   # formatting
 uv run pyright               # types (strict)
-uv run pytest                # tests
+TEST_DB=postgresql+psycopg://gradebook:gradebook@localhost:5432/gradebook_test
+DATABASE_URL=$TEST_DB uv run pytest   # tests
 ```
+
+The tests refuse to run unless the database name ends in `_test`. This keeps them off the
+dev database. A fresh `docker compose up` creates `gradebook_test`
+(`docker/initdb/`). On an existing volume, create it once:
+`docker compose exec db createdb -U gradebook gradebook_test`.
+Change the port in `TEST_DB` if your local Postgres does not use 5432.
 
 ## Layout
 

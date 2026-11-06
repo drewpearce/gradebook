@@ -2,7 +2,7 @@ from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, make_url
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
@@ -19,6 +19,18 @@ def client() -> TestClient:
 
 @pytest.fixture(scope="session")
 def engine() -> Iterator[Engine]:
+    """The test database engine. Refuses any database whose name does not end in ``_test``.
+
+    This stops a test run from touching the dev database (or another project's
+    Postgres) when ``DATABASE_URL`` points at the wrong place.
+    """
+    database = make_url(settings.database_url).database or ""
+    if not database.endswith("_test"):
+        pytest.exit(
+            f"Refusing to run DB tests against {database!r}: the database name must end in "
+            "'_test'. Set DATABASE_URL to the test database (see backend/README.md).",
+            returncode=2,
+        )
     engine = create_engine(settings.database_url)
     try:
         yield engine
