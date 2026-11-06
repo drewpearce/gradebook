@@ -312,3 +312,32 @@ These items are in #23 scope. Each goes to #23 as one comment.
 | **→ #23** | "For #23" list |
 | **→ #24** | AP-4, Postgres 13+ note |
 | **drop** | See "Dropped" |
+
+## Outcome
+
+**Fixed in #22:** every item in the "fix in #22" row. Each correctness fix has a test that failed before the fix.
+
+**Filed under #21:**
+
+| Issue | Items | Priority |
+|---|---|---|
+| #27 | R-28 | P1 |
+| #28 | Frontend component-flow tests | P2 |
+| #29 | AP-3 | P2 |
+| #30 | R-30 | P2 |
+| #31 | R-29 | P2 |
+| #32 | R-26 | P2 |
+| #33 | R-31, R-32 | P3 |
+| #34 | R-33 | P3 |
+
+**Comments:** the "For #23" list went to #23. AP-4, the Postgres 13+ note and the Neon notes went to #24.
+
+**Verification:**
+
+- Backend: 126 tests pass. Coverage is 93%. ruff and pyright are clean.
+- `alembic check` finds no drift. The downgrade round trip passes.
+- Frontend: 57 Vitest tests pass. lint, format, typecheck and build are clean. The OpenAPI contract matches.
+- The seeded "Room 12 (1st/2nd)" class gives the same Grades before and after the changes (percent, letter and reason codes).
+- A browser smoke test passed: login → class → score entry → grades.
+
+**Process note:** the first anonymous-401 sweep test skipped silently. FastAPI wraps included routers, so `app.routes` held no data routes. The sweep now uses the OpenAPI paths, and a guard test fails if it finds fewer than 20 routes.
