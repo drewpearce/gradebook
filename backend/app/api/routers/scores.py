@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
 from app.api.deps import SessionDep, commit_or_conflict, get_or_404
-from app.domain.audience import assignment_applies_to_student
+from app.domain.audience import applies_to
 from app.models import Assignment, Class, Score, Student, Subject
 from app.schemas.score import ScoreRead, ScoreUpsert
 
@@ -47,7 +47,7 @@ def upsert_score(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Assignment and student belong to different classes.",
         )
-    if not assignment_applies_to_student(student, assignment):
+    if not applies_to([gl.id for gl in assignment.audience], student.grade_level_id):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Assignment is not in the student's audience.",

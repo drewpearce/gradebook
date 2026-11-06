@@ -8,14 +8,17 @@ Policy (ADR-0002): a Category's percentage is computed only over the Assignments
 Student has actually been **scored** on within their Audience — unscored applicable
 Assignments are excluded, not zeroed. If any weighted Category has no scored
 applicable Assignment the Subject Grade is **Incomplete**; only when every weighted
-Category has content is a numeric Grade produced, as the weighted roll-up of the
-Categories (weights sum to 100%, no re-scaling).
+Category has content, and the positive weights total exactly 100, is a numeric
+Grade produced, as the weighted roll-up of the Categories (no re-scaling). Weights
+that do not total 100 make the Grade Incomplete (soft rule: never rejected on save).
 """
 
 from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
+
+from app.domain.audience import applies_to
 
 _CENT = Decimal("0.01")
 _HUNDRED = Decimal("100")
@@ -55,8 +58,7 @@ class AssignmentScore:
 class GradeInput:
     """Everything needed to compute one Student's Grade in one Subject.
 
-    Preconditions the caller is responsible for: the weighted Categories' weights
-    sum to 100 (see ``compute_subject_grade``), and ``scale`` covers 0 (includes a
+    Precondition the caller is responsible for: ``scale`` covers 0 (includes a
     band such as F at ``min_percent`` 0) so every numeric percentage maps to a
     Letter.
     """
@@ -70,7 +72,9 @@ class GradeInput:
 @dataclass(frozen=True)
 class CategoryResult:
     """A Category's contribution, for explainability. ``percent is None`` when the
-    Student has no scored applicable Assignment in this Category."""
+    Student has no scored applicable Assignment in this Category.
+    ``applicable_count`` is the number of Assignments in the Category whose Audience
+    applies to the Student (scored or not)."""
 
     category_id: UUID
     weight: Decimal
@@ -78,14 +82,17 @@ class CategoryResult:
     points_possible: Decimal
     percent: Decimal | None
     scored_count: int
+    applicable_count: int
 
 
 @dataclass(frozen=True)
 class SubjectGrade:
     """The computed Grade. ``percent`` and ``letter`` are ``None`` iff Incomplete.
 
-    ``incomplete_category_ids`` names the empty weighted Categories that caused the
-    Incomplete, so the UI can tell the Teacher what to enter.
+    Two causes make it Incomplete, and both are reported together:
+    ``incomplete_category_ids`` names the empty weighted Categories, and
+    ``weights_not_100`` is set when ``weights_total`` (the sum of the positive
+    weights) is not exactly 100.
     """
 
     is_incomplete: bool
@@ -93,14 +100,8 @@ class SubjectGrade:
     letter: str | None
     categories: tuple[CategoryResult, ...]
     incomplete_category_ids: tuple[UUID, ...]
-
-
-def _applies(assignment: AssignmentScore, grade_level_id: UUID) -> bool:
-    """Whether an Assignment is in the Student's Audience (empty Audience ⇒ all)."""
-    return (
-        not assignment.audience_grade_level_ids
-        or grade_level_id in assignment.audience_grade_level_ids
-    )
+    weights_total: Decimal
+    weights_not_100: bool
 
 
 def letter_for_percent(percent: Decimal, scale: Sequence[ScaleBand]) -> str | None:
@@ -116,7 +117,7 @@ def letter_for_percent(percent: Decimal, scale: Sequence[ScaleBand]) -> str | No
     return best.letter if best is not None else None
 
 
-def compute_subject_grade(inp: GradeInput) -> SubjectGrade:
+def compute_subject_grade(grade_input: GradeInput) -> SubjectGrade:
     """Compute a Student's Subject Grade from their Scores, Audience, and weights.
 
     A Category's percentage is points-based — ``Σ points_earned / Σ max_points``
@@ -124,25 +125,23 @@ def compute_subject_grade(inp: GradeInput) -> SubjectGrade:
     Assignment percentages), so Assignments with larger ``max_points`` carry
     proportionally more weight within the Category.
 
-    Assumes the weighted Categories' weights sum to 100; if they don't, the result
-    is the normalized weighted mean (see below). Enforcement is a caller concern:
-    ``app.services.grades`` surfaces a weights shortfall as an Incomplete reason
-    rather than blocking edits — a deliberate soft rule (see ADR-0002), not a
-    write-time block. Also assumes ``inp.scale`` covers 0; see ``GradeInput``.
+    The Grade is Incomplete when a weighted Category is empty or when the positive
+    weights do not total exactly 100 (a soft rule, see ADR-0002: it never blocks a
+    save). Assumes ``grade_input.scale`` covers 0; see ``GradeInput``.
     """
     applicable_by_category: dict[UUID, list[AssignmentScore]] = {}
-    for assignment in inp.assignments:
-        if _applies(assignment, inp.student_grade_level_id):
+    for assignment in grade_input.assignments:
+        if applies_to(assignment.audience_grade_level_ids, grade_input.student_grade_level_id):
             applicable_by_category.setdefault(assignment.category_id, []).append(assignment)
 
     results: list[CategoryResult] = []
     incomplete_category_ids: list[UUID] = []
-    for category in inp.categories:
+    weighted: list[tuple[Decimal, Decimal]] = []  # (percent, weight) of complete Categories
+    for category in grade_input.categories:
+        applicable = applicable_by_category.get(category.category_id, [])
         # Only scored Assignments count — blanks are excluded from both sides.
         scored: list[tuple[Decimal, Decimal]] = [
-            (a.points_earned, a.max_points)
-            for a in applicable_by_category.get(category.category_id, [])
-            if a.points_earned is not None
+            (a.points_earned, a.max_points) for a in applicable if a.points_earned is not None
         ]
         earned = sum((pe for pe, _ in scored), Decimal(0))
         possible = sum((mp for _, mp in scored), Decimal(0))
@@ -157,38 +156,38 @@ def compute_subject_grade(inp: GradeInput) -> SubjectGrade:
                 points_possible=possible,
                 percent=percent,
                 scored_count=len(scored),
+                applicable_count=len(applicable),
             )
         )
-        if category.weight > 0 and percent is None:
-            incomplete_category_ids.append(category.category_id)
+        if category.weight > 0:
+            if percent is None:
+                incomplete_category_ids.append(category.category_id)
+            else:
+                weighted.append((percent, category.weight))
 
-    weighted = [r for r in results if r.weight > 0]
-    # Incomplete if any weighted Category is empty, or there is nothing to weigh.
-    if incomplete_category_ids or not weighted:
+    weights_total = sum((c.weight for c in grade_input.categories if c.weight > 0), Decimal(0))
+    weights_not_100 = weights_total != _HUNDRED
+    if incomplete_category_ids or weights_not_100:
         return SubjectGrade(
             is_incomplete=True,
             percent=None,
             letter=None,
             categories=tuple(results),
             incomplete_category_ids=tuple(incomplete_category_ids),
+            weights_total=weights_total,
+            weights_not_100=weights_not_100,
         )
 
-    # Weighted mean over the (exact) Category percentages. With valid data the
-    # weighted weights sum to 100, so this is ADR-0002's "no re-scaling" roll-up.
-    # Dividing by their actual total (rather than a hardcoded 100) means a config
-    # whose weights don't sum to 100 is normalized to a weighted mean instead of
-    # producing nonsense. The API layer (app.services.grades) treats a non-100
-    # total as Incomplete rather than a numeric Grade — a deliberate soft rule
-    # (ADR-0002), not a write-time block.
-    total_weight = sum((r.weight for r in weighted), Decimal(0))
-    weighted_sum = sum(
-        (r.percent * r.weight for r in weighted if r.percent is not None), Decimal(0)
-    )
-    percent = (weighted_sum / total_weight).quantize(_CENT, rounding=ROUND_HALF_UP)
+    # Every weighted Category has a percent and the weights total exactly 100, so
+    # this is ADR-0002's roll-up with no re-scaling.
+    weighted_sum = sum((p * w for p, w in weighted), Decimal(0))
+    percent = (weighted_sum / _HUNDRED).quantize(_CENT, rounding=ROUND_HALF_UP)
     return SubjectGrade(
         is_incomplete=False,
         percent=percent,
-        letter=letter_for_percent(percent, inp.scale),
+        letter=letter_for_percent(percent, grade_input.scale),
         categories=tuple(results),
         incomplete_category_ids=(),
+        weights_total=weights_total,
+        weights_not_100=False,
     )

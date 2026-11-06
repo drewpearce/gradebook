@@ -519,3 +519,54 @@ def test_patch_assignment_audience_null_clears_the_audience(client: TestClient) 
     r = client.patch(f"/assignments/{s['hw2']}", json={"audience_grade_level_ids": None})
     assert r.status_code == 200, r.text
     assert r.json()["audience_grade_level_ids"] == []
+
+
+def test_category_with_no_assignment_for_the_grade_level_says_so(client: TestClient) -> None:
+    """R-15: Homework has only a 2nd-grade Assignment, so the 1st grader is Incomplete
+    and the message says no Assignment applies (scoring cannot fix it)."""
+    class_id = _class(client, "Combined 1/2")
+    first = _grade_level(client, class_id, "1st", 1)
+    second = _grade_level(client, class_id, "2nd", 2)
+    _scale(client, class_id)
+    subject = _subject(client, class_id)
+    homework = _category(client, subject, "Homework", "30")
+    tests = _category(client, subject, "Tests", "70")
+    _assignment(client, subject, homework, "HW2", "10", [second])
+    test1 = _assignment(client, subject, tests, "Test1", "100", [])
+    alice = _student(client, class_id, first, "Alice")
+    bob = _student(client, class_id, second, "Bob")
+    _score(client, alice, test1, "90")
+    _score(client, bob, test1, "90")
+
+    alice_reasons = _grade(client, alice, subject)["incomplete_reasons"]
+    assert alice_reasons == [
+        {
+            "code": "empty_category",
+            "category_id": homework,
+            "message": "Homework has no assignments for this grade level yet.",
+        }
+    ]
+    bob_reasons = _grade(client, bob, subject)["incomplete_reasons"]
+    assert bob_reasons == [
+        {
+            "code": "empty_category",
+            "category_id": homework,
+            "message": "Homework has no scored assignments yet.",
+        }
+    ]
+
+
+def test_category_percent_is_rounded_to_two_decimals(client: TestClient) -> None:
+    """R-08: 1 of 3 points is shown as 33.33, not 28 digits."""
+    class_id = _class(client)
+    grade_level = _grade_level(client, class_id, "1st")
+    _scale(client, class_id)
+    subject = _subject(client, class_id)
+    category = _category(client, subject, "HW", "100")
+    assignment = _assignment(client, subject, category, "A1", "3", [])
+    student = _student(client, class_id, grade_level, "Z")
+    _score(client, student, assignment, "1")
+
+    grade = _grade(client, student, subject)
+    assert grade["categories"][0]["percent"] == "33.33"
+    assert grade["percent"] == "33.33"

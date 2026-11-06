@@ -4,7 +4,6 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.domain.audience import assignment_applies_to_student
 from app.models import (
     Assignment,
     Category,
@@ -97,7 +96,7 @@ def test_negative_score_rejected(db_session: Session) -> None:
         db_session.flush()
 
 
-def test_audience_membership_and_helper(db_session: Session) -> None:
+def test_audience_membership_persists(db_session: Session) -> None:
     class_ = Class(name="Combined")
     first = GradeLevel(class_=class_, name="1st", position=1)
     second = GradeLevel(class_=class_, name="2nd", position=2)
@@ -109,16 +108,7 @@ def test_audience_membership_and_helper(db_session: Session) -> None:
         subject=subject, category=category, name="Worksheet", max_points=Decimal("10")
     )
     assignment.audience = [first]  # 1st grade only
-    first_grader = Student(class_=class_, grade_level=first, name="One")
-    second_grader = Student(class_=class_, grade_level=second, name="Two")
-    db_session.add_all([assignment, first_grader, second_grader])
+    db_session.add(assignment)
     db_session.flush()
-
-    assert assignment_applies_to_student(first_grader, assignment) is True
-    assert assignment_applies_to_student(second_grader, assignment) is False
-
-    # An empty Audience applies to every Grade Level.
-    assignment.audience = []
-    db_session.flush()
-    assert assignment_applies_to_student(first_grader, assignment) is True
-    assert assignment_applies_to_student(second_grader, assignment) is True
+    db_session.expire(assignment)
+    assert [gl.id for gl in assignment.audience] == [first.id]
