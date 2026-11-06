@@ -4,7 +4,6 @@ from uuid import UUID, uuid4
 
 import jwt
 import pytest
-from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from httpx import Response
 
@@ -110,12 +109,18 @@ def test_token_without_subject_is_rejected(anon_client: TestClient) -> None:
 
 
 _OPEN_PATHS = {"/health", "/auth/login"}
+# Built from the OpenAPI schema: included routers do not appear flat in ``app.routes``.
 _PROTECTED_ROUTES = [
-    pytest.param(method, route.path, id=f"{method} {route.path}")
-    for route in app.routes
-    if isinstance(route, APIRoute) and route.path not in _OPEN_PATHS
-    for method in sorted(route.methods or ())
+    pytest.param(method.upper(), path, id=f"{method.upper()} {path}")
+    for path, operations in app.openapi()["paths"].items()
+    if path not in _OPEN_PATHS
+    for method in sorted(operations)
 ]
+
+
+def test_the_route_sweep_finds_the_data_routes() -> None:
+    # Guard: an empty sweep would skip silently and prove nothing.
+    assert len(_PROTECTED_ROUTES) >= 20
 
 
 @pytest.mark.parametrize(("method", "path"), _PROTECTED_ROUTES)
