@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { formatPercent } from '@/lib/format'
 
 type Subject = components['schemas']['SubjectRead']
 type Category = components['schemas']['CategoryRead']
@@ -38,7 +39,7 @@ function SubjectDialog({
   const { open, setOpen, pending, error, run } = useDialogForm()
   const [name, setName] = useState('')
   const create = useCreateSubject(classId)
-  const update = useUpdateSubject(classId)
+  const update = useUpdateSubject()
 
   useEffect(() => {
     if (open) {
@@ -94,7 +95,7 @@ function CategoryDialog({
   const [name, setName] = useState('')
   const [weight, setWeight] = useState('')
   const create = useCreateCategory(subjectId)
-  const update = useUpdateCategory(subjectId)
+  const update = useUpdateCategory()
 
   useEffect(() => {
     if (open) {
@@ -153,8 +154,8 @@ function CategoryDialog({
 
 function SubjectCard({ classId, subject }: { classId: string; subject: Subject }) {
   const categories = useCategories(subject.id)
-  const removeSubject = useDeleteSubject(classId)
-  const removeCategory = useDeleteCategory(subject.id)
+  const removeSubject = useDeleteSubject()
+  const removeCategory = useDeleteCategory()
   const cats = categories.data ?? []
   const total =
     Math.round(cats.reduce((sum, cat) => sum + Number(cat.weight), 0) * 100) / 100
@@ -200,6 +201,8 @@ function SubjectCard({ classId, subject }: { classId: string; subject: Subject }
         </div>
         {categories.error ? (
           <p className="text-sm text-destructive">Failed to load categories.</p>
+        ) : categories.isPending ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
         ) : cats.length === 0 ? (
           <p className="text-sm text-muted-foreground">No categories yet.</p>
         ) : (
@@ -210,7 +213,7 @@ function SubjectCard({ classId, subject }: { classId: string; subject: Subject }
                   <span className="text-sm">
                     {cat.name}
                     <span className="ml-2 text-xs text-muted-foreground">
-                      {cat.weight}%
+                      {formatPercent(cat.weight)}
                     </span>
                   </span>
                   <div className="flex gap-1">
@@ -239,7 +242,8 @@ function SubjectCard({ classId, subject }: { classId: string; subject: Subject }
             </ul>
             <div className="mt-3 flex justify-end">
               <Badge variant={totalValid ? 'success' : 'warning'}>
-                Weights total {total}%{totalValid ? '' : ' — must total 100%'}
+                Weights total {formatPercent(String(total))}
+                {totalValid ? '' : '. Grades stay Incomplete until they total 100%.'}
               </Badge>
             </div>
           </>

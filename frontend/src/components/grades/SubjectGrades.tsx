@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, type ComponentProps } from 'react'
+import { Link } from 'react-router-dom'
 
 import { useAssignments } from '@/api/assignments'
 import { useRosterGrades } from '@/api/grades'
 import type { components } from '@/api/schema'
 import { useSubjectScores } from '@/api/scores'
+import { QueryState } from '@/components/QueryState'
 import { Badge } from '@/components/ui/badge'
 import { assignmentAppliesToStudent } from '@/lib/audience'
 import { formatPercent, formatPoints } from '@/lib/format'
@@ -13,13 +15,34 @@ type GradeLevel = components['schemas']['GradeLevelRead']
 type GradeResponse = components['schemas']['GradeResponse']
 type Student = components['schemas']['StudentRead']
 
-function StudentGradeRow({
+/** Short reason line shown under the Incomplete badge, e.g. "Missing: Tests". */
+function incompleteSummary(grade: GradeResponse): string {
+  const parts: string[] = []
+  const missing = grade.incomplete_reasons
+    .filter((reason) => reason.code === 'empty_category')
+    .map(
+      (reason) =>
+        grade.categories.find((category) => category.category_id === reason.category_id)
+          ?.name,
+    )
+    .filter((name): name is string => Boolean(name))
+  if (missing.length > 0) {
+    parts.push(`Missing: ${missing.join(', ')}`)
+  }
+  if (grade.incomplete_reasons.some((reason) => reason.code === 'weights_not_100')) {
+    parts.push('Weights do not total 100%')
+  }
+  return parts.join(' · ')
+}
+
+export function StudentGradeRow({
   studentName,
   gradeLevelLabel,
   grade,
   student,
   assignmentsByCategory,
   studentScores,
+  detailQueries = [],
 }: {
   studentName: string
   gradeLevelLabel?: string
@@ -27,7 +50,10 @@ function StudentGradeRow({
   student: Student
   assignmentsByCategory: Map<string, Assignment[]>
   studentScores: Map<string, string>
+  /** Queries the expanded breakdown depends on; it shows only once they have loaded. */
+  detailQueries?: ComponentProps<typeof QueryState>['queries']
 }) {
+  const summary = grade.is_incomplete ? incompleteSummary(grade) : ''
   const [open, setOpen] = useState(false)
   const weightsReason = grade.incomplete_reasons.find(
     (reason) => reason.code === 'weights_not_100',
@@ -46,74 +72,80 @@ function StudentGradeRow({
             <span className="ml-2 text-xs text-muted-foreground">{gradeLevelLabel}</span>
           ) : null}
         </span>
-        {grade.is_incomplete ? (
-          <Badge variant="warning">Incomplete</Badge>
-        ) : (
-          <Badge variant="success">
-            {grade.percent !== null ? formatPercent(grade.percent) : ''} · {grade.letter}
-          </Badge>
-        )}
+        <span className="flex flex-col items-end gap-1">
+          {grade.is_incomplete ? (
+            <Badge variant="warning">Incomplete</Badge>
+          ) : (
+            <Badge variant="success">
+              {grade.percent !== null ? formatPercent(grade.percent) : ''} ·{' '}
+              {grade.letter}
+            </Badge>
+          )}
+          {summary ? <span className="text-xs text-amber-700">{summary}</span> : null}
+        </span>
       </button>
 
       {open ? (
         <div className="mt-3 space-y-3">
-          {weightsReason ? (
-            <p className="text-xs text-amber-700">{weightsReason.message}</p>
-          ) : null}
-          {grade.categories.map((category) => {
-            const emptyReason = grade.incomplete_reasons.find(
-              (reason) =>
-                reason.code === 'empty_category' &&
-                reason.category_id === category.category_id,
-            )
-            const applicable = (
-              assignmentsByCategory.get(category.category_id) ?? []
-            ).filter((assignment) => assignmentAppliesToStudent(student, assignment))
-            return (
-              <div key={category.category_id} className="rounded-md border p-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">
-                    {category.name}
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {formatPercent(category.weight)} weight
+          <QueryState queries={detailQueries}>
+            {weightsReason ? (
+              <p className="text-xs text-amber-700">{weightsReason.message}</p>
+            ) : null}
+            {grade.categories.map((category) => {
+              const emptyReason = grade.incomplete_reasons.find(
+                (reason) =>
+                  reason.code === 'empty_category' &&
+                  reason.category_id === category.category_id,
+              )
+              const applicable = (
+                assignmentsByCategory.get(category.category_id) ?? []
+              ).filter((assignment) => assignmentAppliesToStudent(student, assignment))
+              return (
+                <div key={category.category_id} className="rounded-md border p-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">
+                      {category.name}
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {formatPercent(category.weight)} weight
+                      </span>
                     </span>
-                  </span>
-                  <span className="text-muted-foreground">
-                    {category.percent !== null
-                      ? `${formatPercent(category.percent)} · ${formatPoints(category.points_earned)}/${formatPoints(category.points_possible)}`
-                      : '—'}
-                  </span>
-                </div>
-                {emptyReason ? (
-                  <p className="mt-1 text-xs text-amber-700">{emptyReason.message}</p>
-                ) : null}
-                <ul className="mt-2 space-y-1">
-                  {applicable.map((assignment) => {
-                    const score = studentScores.get(assignment.id)
-                    return (
-                      <li key={assignment.id} className="flex justify-between text-xs">
-                        <span>{assignment.name}</span>
-                        {score !== undefined ? (
-                          <span>
-                            {formatPoints(score)}/{formatPoints(assignment.max_points)}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">
-                            blank — not counted
-                          </span>
-                        )}
-                      </li>
-                    )
-                  })}
-                  {applicable.length === 0 ? (
-                    <li className="text-xs text-muted-foreground">
-                      No assignments apply.
-                    </li>
+                    <span className="text-muted-foreground">
+                      {category.percent !== null
+                        ? `${formatPercent(category.percent)} · ${formatPoints(category.points_earned)}/${formatPoints(category.points_possible)}`
+                        : '—'}
+                    </span>
+                  </div>
+                  {emptyReason ? (
+                    <p className="mt-1 text-xs text-amber-700">{emptyReason.message}</p>
                   ) : null}
-                </ul>
-              </div>
-            )
-          })}
+                  <ul className="mt-2 space-y-1">
+                    {applicable.map((assignment) => {
+                      const score = studentScores.get(assignment.id)
+                      return (
+                        <li key={assignment.id} className="flex justify-between text-xs">
+                          <span>{assignment.name}</span>
+                          {score !== undefined ? (
+                            <span>
+                              {formatPoints(score)}/{formatPoints(assignment.max_points)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              blank — not counted
+                            </span>
+                          )}
+                        </li>
+                      )
+                    })}
+                    {applicable.length === 0 ? (
+                      <li className="text-xs text-muted-foreground">
+                        No assignments apply.
+                      </li>
+                    ) : null}
+                  </ul>
+                </div>
+              )
+            })}
+          </QueryState>
         </div>
       ) : null}
     </li>
@@ -158,34 +190,49 @@ export function SubjectGrades({
     return gradeLevels.find((level) => level.id === id)?.name ?? ''
   }
 
-  if (rosterQuery.error) {
-    return <p className="text-sm text-destructive">Failed to load grades.</p>
+  if (rosterQuery.data === undefined) {
+    return <QueryState queries={[rosterQuery]}>{null}</QueryState>
   }
   if (grades.length === 0) {
     return <p className="text-sm text-muted-foreground">No students yet.</p>
   }
 
+  const weightsOff = grades.some((grade) =>
+    grade.incomplete_reasons.some((reason) => reason.code === 'weights_not_100'),
+  )
+
   return (
-    <ul className="divide-y rounded-md border">
-      {grades.map((grade) => {
-        const student = studentById.get(grade.student_id)
-        if (!student) {
-          return null
-        }
-        return (
-          <StudentGradeRow
-            key={grade.student_id}
-            studentName={student.name}
-            gradeLevelLabel={
-              showGradeLevel ? gradeLevelName(student.grade_level_id) : undefined
-            }
-            grade={grade}
-            student={student}
-            assignmentsByCategory={assignmentsByCategory}
-            studentScores={scoresByStudent.get(grade.student_id) ?? new Map()}
-          />
-        )
-      })}
-    </ul>
+    <div className="space-y-3">
+      {weightsOff ? (
+        <p className="text-sm text-amber-700">
+          Category weights do not total 100%. Grades stay Incomplete until they do.{' '}
+          <Link to={`/classes/${classId}`} className="underline">
+            Fix weights in class setup
+          </Link>
+        </p>
+      ) : null}
+      <ul className="divide-y rounded-md border">
+        {grades.map((grade) => {
+          const student = studentById.get(grade.student_id)
+          if (!student) {
+            return null
+          }
+          return (
+            <StudentGradeRow
+              key={grade.student_id}
+              studentName={student.name}
+              gradeLevelLabel={
+                showGradeLevel ? gradeLevelName(student.grade_level_id) : undefined
+              }
+              grade={grade}
+              student={student}
+              assignmentsByCategory={assignmentsByCategory}
+              studentScores={scoresByStudent.get(grade.student_id) ?? new Map()}
+              detailQueries={[assignmentsQuery, scoresQuery]}
+            />
+          )
+        })}
+      </ul>
+    </div>
   )
 }

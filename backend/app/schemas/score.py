@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ScoreUpsert(BaseModel):
-    points_earned: Decimal = Field(ge=0)
+    points_earned: Decimal = Field(ge=0, max_digits=6, decimal_places=2)
 
 
 class ScoreRead(BaseModel):

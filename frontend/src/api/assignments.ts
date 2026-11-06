@@ -20,39 +20,33 @@ export function useAssignments(subjectId: string) {
 }
 
 export function useCreateAssignment(subjectId: string) {
-  return useInvalidatingMutation(
-    (body: AssignmentCreate) =>
-      unwrap(
-        client.POST('/subjects/{subject_id}/assignments', {
-          params: { path: { subject_id: subjectId } },
-          body,
-        }),
-      ),
-    [['assignments', subjectId]],
+  return useInvalidatingMutation((body: AssignmentCreate) =>
+    unwrap(
+      client.POST('/subjects/{subject_id}/assignments', {
+        params: { path: { subject_id: subjectId } },
+        body,
+      }),
+    ),
   )
 }
 
-export function useUpdateAssignment(subjectId: string) {
-  return useInvalidatingMutation(
-    ({ id, body }: { id: string; body: AssignmentUpdate }) =>
-      unwrap(
-        client.PATCH('/assignments/{assignment_id}', {
-          params: { path: { assignment_id: id } },
-          body,
-        }),
-      ),
-    [['assignments', subjectId]],
+export function useUpdateAssignment() {
+  return useInvalidatingMutation(({ id, body }: { id: string; body: AssignmentUpdate }) =>
+    unwrap(
+      client.PATCH('/assignments/{assignment_id}', {
+        params: { path: { assignment_id: id } },
+        body,
+      }),
+    ),
   )
 }
 
-export function useDeleteAssignment(subjectId: string) {
-  return useInvalidatingMutation(
-    (id: string) =>
-      unwrap(
-        client.DELETE('/assignments/{assignment_id}', {
-          params: { path: { assignment_id: id } },
-        }),
-      ),
-    [['assignments', subjectId]],
+export function useDeleteAssignment() {
+  return useInvalidatingMutation((id: string) =>
+    unwrap(
+      client.DELETE('/assignments/{assignment_id}', {
+        params: { path: { assignment_id: id } },
+      }),
+    ),
   )
 }

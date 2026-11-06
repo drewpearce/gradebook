@@ -2,12 +2,12 @@
 
 Loads the Subject's Categories, Assignments (with Audience) and Grading Scale, plus
 a Student's Scores, builds a ``GradeInput``, runs ``compute_subject_grade``, and
-maps the result to the API's ``GradeResponse`` — applying the soft weights rule
-(weights must total 100 for a numeric Grade; a shortfall surfaces as Incomplete).
+maps the result to the API's ``GradeResponse``. The grade policy itself lives in
+the domain module; this module only maps.
 """
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
 
 from sqlalchemy import select
@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.domain.grades import (
     AssignmentScore,
+    CategoryResult,
     CategoryWeight,
     GradeInput,
     ScaleBand,
@@ -23,7 +24,7 @@ from app.domain.grades import (
 from app.models import Assignment, Category, GradeBand, GradingScale, Score, Student, Subject
 from app.schemas.grade import CategoryBreakdown, GradeResponse, IncompleteReason
 
-_HUNDRED = Decimal("100")
+_CENT = Decimal("0.01")
 
 
 @dataclass
@@ -60,6 +61,12 @@ def _load_subject_data(session: Session, subject: Subject) -> _SubjectData:
     return _SubjectData(categories=categories, assignments=assignments, scale=scale)
 
 
+def _empty_category_message(name: str, category: CategoryResult) -> str:
+    if category.applicable_count == 0:
+        return f"{name} has no assignments for this grade level yet."
+    return f"{name} has no scored assignments yet."
+
+
 def _grade_response(
     data: _SubjectData,
     *,
@@ -85,17 +92,14 @@ def _grade_response(
     )
     result = compute_subject_grade(grade_input)
 
-    # Soft weights rule: a real Grade needs the weighted Categories to total 100%.
-    weighted_total = sum((c.weight for c in data.categories if c.weight > 0), Decimal(0))
-    weights_valid = weighted_total == _HUNDRED
-
     name_by_id = {c.id: c.name for c in data.categories}
     breakdown = [
         CategoryBreakdown(
             category_id=cr.category_id,
             name=name_by_id.get(cr.category_id, ""),
             weight=cr.weight,
-            percent=cr.percent,
+            # Rounded for display only; the roll-up used the exact value.
+            percent=None if cr.percent is None else cr.percent.quantize(_CENT, ROUND_HALF_UP),
             points_earned=cr.points_earned,
             points_possible=cr.points_possible,
             scored_count=cr.scored_count,
@@ -103,29 +107,31 @@ def _grade_response(
         for cr in result.categories
     ]
 
+    category_by_id = {cr.category_id: cr for cr in result.categories}
     reasons = [
         IncompleteReason(
             code="empty_category",
             category_id=category_id,
-            message=f"{name_by_id.get(category_id, 'Category')} has no scored assignments yet.",
+            message=_empty_category_message(
+                name_by_id.get(category_id, "Category"), category_by_id[category_id]
+            ),
         )
         for category_id in result.incomplete_category_ids
     ]
-    if not weights_valid:
+    if result.weights_not_100:
         reasons.append(
             IncompleteReason(
                 code="weights_not_100",
-                message=f"Category weights total {weighted_total}%, must be 100%.",
+                message=f"Category weights total {result.weights_total}%, must be 100%.",
             )
         )
 
-    is_incomplete = result.is_incomplete or not weights_valid
     return GradeResponse(
         student_id=student_id,
         subject_id=subject_id,
-        is_incomplete=is_incomplete,
-        percent=None if is_incomplete else result.percent,
-        letter=None if is_incomplete else result.letter,
+        is_incomplete=result.is_incomplete,
+        percent=result.percent,
+        letter=result.letter,
         categories=breakdown,
         incomplete_reasons=reasons,
     )

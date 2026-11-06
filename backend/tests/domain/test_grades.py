@@ -207,3 +207,72 @@ def test_zero_weight_category_does_not_affect_rollup() -> None:
     assert grade.is_incomplete is False
     assert grade.percent == Decimal("90.00")  # only the weighted HW category counts
     assert grade.letter == "A"
+
+
+def _fully_scored(weights: list[Decimal]) -> GradeInput:
+    """One fully scored 10/10 Assignment per Category, with the given weights."""
+    categories = [CategoryWeight(uuid4(), w) for w in weights]
+    assignments = [
+        AssignmentScore(uuid4(), c.category_id, Decimal("10"), frozenset(), Decimal("10"))
+        for c in categories
+    ]
+    return GradeInput(FIRST, categories, assignments, _scale())
+
+
+def test_weights_not_totalling_100_is_incomplete_not_rescaled() -> None:
+    grade = compute_subject_grade(_fully_scored([Decimal("50"), Decimal("30")]))
+    assert grade.is_incomplete is True
+    assert grade.weights_not_100 is True
+    assert grade.weights_total == Decimal("80")
+    assert grade.percent is None
+    assert grade.letter is None
+    assert grade.incomplete_category_ids == ()
+
+
+def test_empty_category_and_bad_weights_report_both_causes() -> None:
+    hw1 = uuid4()
+    grade = compute_subject_grade(
+        GradeInput(
+            FIRST,
+            [CategoryWeight(HOMEWORK, Decimal("50")), CategoryWeight(TESTS, Decimal("30"))],
+            [AssignmentScore(hw1, HOMEWORK, Decimal("10"), frozenset(), Decimal("8"))],
+            _scale(),
+        )
+    )
+    assert grade.is_incomplete is True
+    assert grade.incomplete_category_ids == (TESTS,)
+    assert grade.weights_not_100 is True
+    assert grade.percent is None
+
+
+def test_all_weights_zero_is_weights_not_100() -> None:
+    grade = compute_subject_grade(_fully_scored([Decimal("0"), Decimal("0")]))
+    assert grade.is_incomplete is True
+    assert grade.weights_not_100 is True
+    assert grade.weights_total == Decimal("0")
+    assert grade.incomplete_category_ids == ()
+
+
+def test_weights_totalling_exactly_100_is_complete() -> None:
+    grade = compute_subject_grade(_fully_scored([Decimal("60"), Decimal("40")]))
+    assert grade.is_incomplete is False
+    assert grade.weights_not_100 is False
+    assert grade.percent == Decimal("100.00")
+
+
+def test_applicable_count_counts_assignments_in_the_students_audience() -> None:
+    hw1, hw2 = uuid4(), uuid4()
+    grade = compute_subject_grade(
+        GradeInput(
+            FIRST,
+            [CategoryWeight(HOMEWORK, Decimal("100"))],
+            [
+                AssignmentScore(hw1, HOMEWORK, Decimal("10"), frozenset(), None),
+                AssignmentScore(hw2, HOMEWORK, Decimal("10"), frozenset({SECOND}), None),
+            ],
+            _scale(),
+        )
+    )
+    (homework,) = grade.categories
+    assert homework.applicable_count == 1  # hw2 is 2nd grade only
+    assert homework.scored_count == 0

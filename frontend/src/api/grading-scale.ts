@@ -28,14 +28,12 @@ export function useGradingScale(classId: string) {
 }
 
 export function usePutGradingScale(classId: string) {
-  return useInvalidatingMutation(
-    (body: GradingScaleUpsert) =>
-      unwrap(
-        client.PUT('/classes/{class_id}/grading-scale', {
-          params: { path: { class_id: classId } },
-          body,
-        }),
-      ),
-    [['grading-scale', classId]],
+  return useInvalidatingMutation((body: GradingScaleUpsert) =>
+    unwrap(
+      client.PUT('/classes/{class_id}/grading-scale', {
+        params: { path: { class_id: classId } },
+        body,
+      }),
+    ),
   )
 }

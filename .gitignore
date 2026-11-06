@@ -13,3 +13,6 @@ __pycache__/
 # Env
 .env
 
+
+# pytest-cov
+.coverage

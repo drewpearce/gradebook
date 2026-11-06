@@ -1,6 +1,6 @@
 from typing import Self
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Committed, public — safe only for local dev. The guard below refuses to boot with
@@ -19,11 +19,19 @@ class Settings(BaseSettings):
 
     # Auth. secret_key MUST be overridden outside dev (see the guard below).
     secret_key: str = DEFAULT_SECRET_KEY
-    jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 720  # 12 hours
 
     # Origins allowed to call the API cross-origin (the Vite SPA in dev).
     cors_origins: list[str] = ["http://localhost:5173"]
+
+    @field_validator("database_url")
+    @classmethod
+    def _use_psycopg_driver(cls, url: str) -> str:
+        # Hosts (e.g. Neon) hand out plain postgres(ql):// URLs; SQLAlchemy would load psycopg2.
+        for prefix in ("postgres://", "postgresql://"):
+            if url.startswith(prefix):
+                return "postgresql+psycopg://" + url.removeprefix(prefix)
+        return url
 
     @model_validator(mode="after")
     def _require_real_secret_outside_dev(self) -> Self:

@@ -3,8 +3,15 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
-from app.api.deps import SessionDep, commit_or_conflict, get_or_404
-from app.models import Class, GradeBand, GradeLevel, GradingScale, Student
+from app.api.deps import SessionDep, apply_patch, commit_or_conflict, get_or_404
+from app.models import (
+    Class,
+    GradeBand,
+    GradeLevel,
+    GradingScale,
+    Student,
+    assignment_audience,
+)
 from app.schemas.class_ import (
     ClassCreate,
     ClassRead,
@@ -44,8 +51,7 @@ def get_class(class_id: UUID, session: SessionDep) -> Class:
 @router.patch("/classes/{class_id}", response_model=ClassRead)
 def update_class(class_id: UUID, payload: ClassUpdate, session: SessionDep) -> Class:
     class_ = get_or_404(session, Class, class_id, "Class")
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(class_, field, value)
+    apply_patch(class_, payload.model_dump(exclude_unset=True))
     commit_or_conflict(session)
     session.refresh(class_)
     return class_
@@ -93,8 +99,7 @@ def update_grade_level(
     grade_level_id: UUID, payload: GradeLevelUpdate, session: SessionDep
 ) -> GradeLevel:
     grade_level = get_or_404(session, GradeLevel, grade_level_id, "Grade level")
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(grade_level, field, value)
+    apply_patch(grade_level, payload.model_dump(exclude_unset=True))
     commit_or_conflict(session)
     session.refresh(grade_level)
     return grade_level
@@ -112,6 +117,18 @@ def delete_grade_level(grade_level_id: UUID, session: SessionDep) -> None:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             detail="Cannot delete a grade level that still has students; reassign them first.",
+        )
+    # assignment_audience cascades on delete, which would silently turn a "2nd only"
+    # Assignment into an empty Audience (= every Grade Level). Refuse instead.
+    in_audience = session.scalar(
+        select(assignment_audience.c.assignment_id)
+        .where(assignment_audience.c.grade_level_id == grade_level_id)
+        .limit(1)
+    )
+    if in_audience is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Remove this grade level from assignment audiences first.",
         )
     session.delete(grade_level)
     session.commit()
@@ -134,10 +151,20 @@ def put_grading_scale(
     class_id: UUID, payload: GradingScaleUpsert, session: SessionDep
 ) -> GradingScale:
     get_or_404(session, Class, class_id, "Class")
+    if not any(band.min_percent == 0 for band in payload.bands):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="The grading scale needs a band that starts at 0%.",
+        )
     scale = session.scalar(select(GradingScale).where(GradingScale.class_id == class_id))
     if scale is None:
         scale = GradingScale(class_id=class_id)
         session.add(scale)
+    else:
+        # Delete the old bands first: otherwise the INSERTs of the new ones run before the
+        # DELETEs and trip UNIQUE(grading_scale_id, letter).
+        scale.bands.clear()
+        session.flush()
     scale.bands = [
         GradeBand(letter=band.letter, min_percent=band.min_percent) for band in payload.bands
     ]

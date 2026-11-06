@@ -4,13 +4,15 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.types import NoNulStr
+
 
 class SubjectCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=80)
+    name: NoNulStr = Field(min_length=1, max_length=80)
 
 
 class SubjectUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=80)
+    name: NoNulStr | None = Field(default=None, min_length=1, max_length=80)
 
 
 class SubjectRead(BaseModel):
@@ -24,13 +26,13 @@ class SubjectRead(BaseModel):
 
 
 class CategoryCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=80)
-    weight: Decimal = Field(ge=0, le=100)
+    name: NoNulStr = Field(min_length=1, max_length=80)
+    weight: Decimal = Field(ge=0, le=100, max_digits=5, decimal_places=2)
 
 
 class CategoryUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=80)
-    weight: Decimal | None = Field(default=None, ge=0, le=100)
+    name: NoNulStr | None = Field(default=None, min_length=1, max_length=80)
+    weight: Decimal | None = Field(default=None, ge=0, le=100, max_digits=5, decimal_places=2)
 
 
 class CategoryRead(BaseModel):
@@ -45,16 +47,16 @@ class CategoryRead(BaseModel):
 
 
 class AssignmentCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=160)
+    name: NoNulStr = Field(min_length=1, max_length=160)
     category_id: uuid.UUID
-    max_points: Decimal = Field(gt=0)
+    max_points: Decimal = Field(gt=0, max_digits=6, decimal_places=2)
     audience_grade_level_ids: list[uuid.UUID] = []
 
 
 class AssignmentUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=160)
+    name: NoNulStr | None = Field(default=None, min_length=1, max_length=160)
     category_id: uuid.UUID | None = None
-    max_points: Decimal | None = Field(default=None, gt=0)
+    max_points: Decimal | None = Field(default=None, gt=0, max_digits=6, decimal_places=2)
     # Omit to leave the Audience unchanged; send [] or null to clear it (⇒ all).
     audience_grade_level_ids: list[uuid.UUID] | None = None
 

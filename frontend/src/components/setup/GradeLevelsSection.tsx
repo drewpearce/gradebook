@@ -31,7 +31,7 @@ function GradeLevelDialog({
   const { open, setOpen, pending, error, run } = useDialogForm()
   const [name, setName] = useState('')
   const create = useCreateGradeLevel(classId)
-  const update = useUpdateGradeLevel(classId)
+  const update = useUpdateGradeLevel()
 
   useEffect(() => {
     if (open) {
@@ -76,7 +76,7 @@ function GradeLevelDialog({
 
 export function GradeLevelsSection({ classId }: { classId: string }) {
   const gradeLevels = useGradeLevels(classId)
-  const remove = useDeleteGradeLevel(classId)
+  const remove = useDeleteGradeLevel()
   const levels = gradeLevels.data ?? []
 
   return (

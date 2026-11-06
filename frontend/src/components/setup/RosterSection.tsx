@@ -35,7 +35,7 @@ function StudentDialog({
   const [name, setName] = useState('')
   const [gradeLevelId, setGradeLevelId] = useState('')
   const create = useCreateStudent(classId)
-  const update = useUpdateStudent(classId)
+  const update = useUpdateStudent()
 
   useEffect(() => {
     if (open) {
@@ -103,7 +103,7 @@ function StudentDialog({
 export function RosterSection({ classId }: { classId: string }) {
   const gradeLevels = useGradeLevels(classId)
   const students = useStudents(classId)
-  const remove = useDeleteStudent(classId)
+  const remove = useDeleteStudent()
   const levels = gradeLevels.data ?? []
   const roster = students.data ?? []
   const showGradeLevel = levels.length >= 2

@@ -18,7 +18,7 @@ export function useSubjectScores(classId: string, subjectId: string) {
   })
 }
 
-export function useUpsertScore(subjectId: string) {
+export function useUpsertScore() {
   return useInvalidatingMutation(
     ({
       studentId,
@@ -35,11 +35,10 @@ export function useUpsertScore(subjectId: string) {
           body,
         }),
       ),
-    [['scores', subjectId]],
   )
 }
 
-export function useDeleteScore(subjectId: string) {
+export function useDeleteScore() {
   return useInvalidatingMutation(
     ({ studentId, assignmentId }: { studentId: string; assignmentId: string }) =>
       unwrap(
@@ -47,6 +46,5 @@ export function useDeleteScore(subjectId: string) {
           params: { path: { student_id: studentId, assignment_id: assignmentId } },
         }),
       ),
-    [['scores', subjectId]],
   )
 }
