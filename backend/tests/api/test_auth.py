@@ -1,12 +1,16 @@
 import datetime as dt
+from collections import defaultdict
 from uuid import UUID, uuid4
 
 import jwt
+import pytest
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from httpx import Response
 
 from app.auth.security import create_access_token
 from app.config import settings
+from app.main import app
 from app.models import Teacher
 
 
@@ -35,18 +39,24 @@ def test_unauthenticated_data_request_is_rejected(anon_client: TestClient) -> No
     assert anon_client.get("/classes").status_code == 401
 
 
-def test_login_issues_a_usable_token(
+def test_login_returns_a_bearer_token(
     anon_client: TestClient, teacher: Teacher, teacher_credentials: tuple[str, str]
 ) -> None:
     username, password = teacher_credentials
     response = _login(anon_client, username, password)
     assert response.status_code == 200
-    body = response.json()
-    assert body["token_type"] == "bearer"
-    headers = {"Authorization": f"Bearer {body['access_token']}"}
+    assert response.json()["token_type"] == "bearer"
+    assert response.json()["access_token"]
 
-    assert anon_client.get("/classes", headers=headers).status_code == 200
-    me = anon_client.get("/auth/me", headers=headers)
+
+def test_issued_token_opens_protected_routes(
+    anon_client: TestClient, teacher: Teacher, teacher_credentials: tuple[str, str]
+) -> None:
+    username, password = teacher_credentials
+    token = _login(anon_client, username, password).json()["access_token"]
+
+    assert anon_client.get("/classes", headers=_auth(token)).status_code == 200
+    me = anon_client.get("/auth/me", headers=_auth(token))
     assert me.status_code == 200
     assert me.json()["username"] == username
 
@@ -81,3 +91,36 @@ def test_token_for_unknown_teacher_is_rejected(anon_client: TestClient) -> None:
     # Correctly signed, unexpired, but the subject is not a teacher in the DB.
     token = create_access_token(uuid4())
     assert anon_client.get("/classes", headers=_auth(token)).status_code == 401
+
+
+def _forge_claims(claims: dict[str, object]) -> str:
+    now = dt.datetime.now(dt.UTC)
+    full = {"iat": now, "exp": now + dt.timedelta(minutes=60), **claims}
+    return jwt.encode(full, settings.secret_key, algorithm=settings.jwt_algorithm)
+
+
+def test_token_with_non_uuid_subject_is_rejected(anon_client: TestClient) -> None:
+    token = _forge_claims({"sub": "not-a-uuid"})
+    assert anon_client.get("/classes", headers=_auth(token)).status_code == 401
+
+
+def test_token_without_subject_is_rejected(anon_client: TestClient) -> None:
+    token = _forge_claims({})
+    assert anon_client.get("/classes", headers=_auth(token)).status_code == 401
+
+
+_OPEN_PATHS = {"/health", "/auth/login"}
+_PROTECTED_ROUTES = [
+    pytest.param(method, route.path, id=f"{method} {route.path}")
+    for route in app.routes
+    if isinstance(route, APIRoute) and route.path not in _OPEN_PATHS
+    for method in sorted(route.methods or ())
+]
+
+
+@pytest.mark.parametrize(("method", "path"), _PROTECTED_ROUTES)
+def test_every_protected_route_rejects_a_missing_token(
+    anon_client: TestClient, method: str, path: str
+) -> None:
+    url = path.format_map(defaultdict(uuid4))
+    assert anon_client.request(method, url).status_code == 401

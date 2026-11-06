@@ -1,3 +1,5 @@
+from decimal import Decimal
+from typing import Any
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -199,7 +201,140 @@ def test_grade_incomplete_when_weights_not_100(client: TestClient) -> None:
 
     grade = client.get(f"/students/{student}/subjects/{subject}/grade").json()
     assert grade["is_incomplete"] is True
+    assert grade["percent"] is None
+    assert grade["letter"] is None
     assert "weights_not_100" in {r["code"] for r in grade["incomplete_reasons"]}
+
+
+def _single_category_setup(client: TestClient) -> dict[str, str]:
+    """One Category (weight 100) with two 10-point Assignments and one Student."""
+    class_id = _class(client)
+    grade_level = _grade_level(client, class_id, "1st")
+    _scale(client, class_id)
+    subject = _subject(client, class_id)
+    category = _category(client, subject, "HW", "100")
+    return {
+        "subject": subject,
+        "a1": _assignment(client, subject, category, "A1", "10", []),
+        "a2": _assignment(client, subject, category, "A2", "10", []),
+        "student": _student(client, class_id, grade_level, "Z"),
+    }
+
+
+def _grade(client: TestClient, student_id: str, subject_id: str) -> dict[str, Any]:
+    return client.get(f"/students/{student_id}/subjects/{subject_id}/grade").json()
+
+
+def test_blank_assignment_is_excluded_from_category_percent(client: TestClient) -> None:
+    s = _single_category_setup(client)
+    _score(client, s["student"], s["a1"], "10")  # a2 left blank
+
+    grade = _grade(client, s["student"], s["subject"])
+    assert Decimal(grade["categories"][0]["percent"]) == 100
+    assert grade["categories"][0]["scored_count"] == 1
+    assert grade["is_incomplete"] is False
+    assert grade["percent"] == "100.00"
+    assert grade["letter"] == "A"
+
+
+def test_explicit_zero_score_counts_against_the_grade(client: TestClient) -> None:
+    s = _single_category_setup(client)
+    _score(client, s["student"], s["a1"], "10")
+    assert _score(client, s["student"], s["a2"], "0").status_code == 200
+
+    grade = _grade(client, s["student"], s["subject"])
+    assert Decimal(grade["categories"][0]["percent"]) == 50
+    assert grade["percent"] == "50.00"
+    assert grade["letter"] == "F"
+
+
+def test_deleting_a_score_makes_it_blank_again(client: TestClient) -> None:
+    s = _single_category_setup(client)
+    _score(client, s["student"], s["a1"], "10")
+    _score(client, s["student"], s["a2"], "0")
+    assert _grade(client, s["student"], s["subject"])["percent"] == "50.00"
+
+    r = client.delete(f"/students/{s['student']}/assignments/{s['a2']}/score")
+    assert r.status_code == 204
+
+    grade = _grade(client, s["student"], s["subject"])
+    assert Decimal(grade["categories"][0]["percent"]) == 100
+    assert grade["categories"][0]["scored_count"] == 1
+    assert grade["percent"] == "100.00"
+
+
+def test_deleting_a_missing_score_is_404(client: TestClient) -> None:
+    s = _single_category_setup(client)
+    r = client.delete(f"/students/{s['student']}/assignments/{s['a1']}/score")
+    assert r.status_code == 404
+
+
+def test_saving_category_weights_over_100_is_accepted(client: TestClient) -> None:
+    subject = _subject(client, _class(client))
+    _category(client, subject, "A", "60")  # each helper call asserts 201
+    _category(client, subject, "B", "60")
+
+
+def test_patching_a_weight_so_total_is_not_100_is_accepted(client: TestClient) -> None:
+    subject = _subject(client, _class(client))
+    _category(client, subject, "A", "50")
+    other = _category(client, subject, "B", "50")
+
+    r = client.patch(f"/categories/{other}", json={"weight": "30"})
+    assert r.status_code == 200
+    assert r.json()["weight"] == "30.00"
+
+
+def test_weights_over_100_make_grade_incomplete_with_weights_not_100(client: TestClient) -> None:
+    class_id = _class(client)
+    grade_level = _grade_level(client, class_id, "1st")
+    _scale(client, class_id)
+    subject = _subject(client, class_id)
+    c1 = _category(client, subject, "A", "60")
+    c2 = _category(client, subject, "B", "60")
+    student = _student(client, class_id, grade_level, "Z")
+    _score(client, student, _assignment(client, subject, c1, "A1", "10", []), "10")
+    _score(client, student, _assignment(client, subject, c2, "B1", "10", []), "10")
+
+    grade = _grade(client, student, subject)
+    assert grade["is_incomplete"] is True
+    assert grade["percent"] is None
+    assert grade["letter"] is None
+    assert [r["code"] for r in grade["incomplete_reasons"]] == ["weights_not_100"]
+
+
+def test_empty_category_and_bad_weights_give_both_reasons_empty_category_first(
+    client: TestClient,
+) -> None:
+    class_id = _class(client)
+    grade_level = _grade_level(client, class_id, "1st")
+    _scale(client, class_id)
+    subject = _subject(client, class_id)
+    c1 = _category(client, subject, "A", "30")
+    _category(client, subject, "B", "30")  # empty; total 60%
+    student = _student(client, class_id, grade_level, "Z")
+    _score(client, student, _assignment(client, subject, c1, "A1", "10", []), "10")
+
+    grade = _grade(client, student, subject)
+    assert [r["code"] for r in grade["incomplete_reasons"]] == [
+        "empty_category",
+        "weights_not_100",
+    ]
+
+
+def test_all_weights_zero_gives_weights_not_100(client: TestClient) -> None:
+    class_id = _class(client)
+    grade_level = _grade_level(client, class_id, "1st")
+    _scale(client, class_id)
+    subject = _subject(client, class_id)
+    category = _category(client, subject, "A", "0")
+    student = _student(client, class_id, grade_level, "Z")
+    _score(client, student, _assignment(client, subject, category, "A1", "10", []), "10")
+
+    grade = _grade(client, student, subject)
+    assert grade["is_incomplete"] is True
+    assert grade["percent"] is None
+    assert [r["code"] for r in grade["incomplete_reasons"]] == ["weights_not_100"]
 
 
 def test_roster_grades(client: TestClient) -> None:
