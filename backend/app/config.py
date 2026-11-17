@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     def _require_real_config_outside_dev(self) -> Self:
         if self.fly_app_name and self.environment != "production":
             raise ValueError("ENVIRONMENT must be 'production' on Fly")
+        if self.fly_app_name and not self.trust_proxy_ip_header:
+            # Otherwise every client shares the proxy's IP and one attacker locks out all.
+            raise ValueError("TRUST_PROXY_IP_HEADER must be true on Fly")
         if self.environment != "dev" and self.secret_key == DEFAULT_SECRET_KEY:
             raise ValueError(
                 "SECRET_KEY must be set to a non-default value when ENVIRONMENT is not 'dev' "

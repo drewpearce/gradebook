@@ -30,9 +30,10 @@ def login(
     )
     # Hit BEFORE verifying so a crash during verify still counts. Successes also count toward
     # the per-IP limit (a hit can't be undone per-key; 50/15min is ample for one teacher).
-    pair_key = f"{ip}|{form.username}"
-    waits = [pair_limiter.hit(pair_key), ip_limiter.hit(ip)]
-    if retry_after := max((w for w in waits if w is not None), default=None):
+    # The IP check goes first, so one IP creates at most 50 pair keys per window; the
+    # username is truncated to the column width so a key can't be made arbitrarily large.
+    pair_key = f"{ip}|{form.username[:80]}"
+    if retry_after := ip_limiter.hit(ip) or pair_limiter.hit(pair_key):
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many login attempts. Try again later.",

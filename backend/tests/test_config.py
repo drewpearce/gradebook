@@ -48,5 +48,17 @@ def test_fly_requires_production_environment() -> None:
         fly_app_name="gradebook",
         secret_key=REAL_SECRET,
         database_url=REAL_DB,
+        trust_proxy_ip_header=True,
     )
     assert settings.fly_app_name == "gradebook"
+
+
+def test_fly_requires_trusting_the_proxy_ip_header() -> None:
+    # Without it every client shares Fly's proxy IP, so one attacker locks everyone out.
+    with pytest.raises(ValidationError, match="TRUST_PROXY_IP_HEADER"):
+        Settings(
+            environment="production",
+            fly_app_name="gradebook",
+            secret_key=REAL_SECRET,
+            database_url=REAL_DB,
+        )
