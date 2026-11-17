@@ -5,6 +5,7 @@ from app.config import DEFAULT_DATABASE_URL, DEFAULT_SECRET_KEY, Settings
 
 REAL_SECRET = "a-real-secret-of-sufficient-length!!"
 REAL_DB = "postgresql+psycopg://u:p@db.example/gradebook"
+STATIC = "/app/static"
 
 
 def test_default_secret_is_rejected_outside_dev() -> None:
@@ -18,7 +19,9 @@ def test_default_secret_is_allowed_in_dev() -> None:
 
 
 def test_real_secret_is_accepted_outside_dev() -> None:
-    settings = Settings(environment="production", secret_key=REAL_SECRET, database_url=REAL_DB)
+    settings = Settings(
+        environment="production", secret_key=REAL_SECRET, database_url=REAL_DB, static_dir=STATIC
+    )
     assert settings.environment == "production"
 
 
@@ -48,6 +51,7 @@ def test_fly_requires_production_environment() -> None:
         fly_app_name="gradebook",
         secret_key=REAL_SECRET,
         database_url=REAL_DB,
+        static_dir=STATIC,
         trust_proxy_ip_header=True,
     )
     assert settings.fly_app_name == "gradebook"
@@ -62,3 +66,8 @@ def test_fly_requires_trusting_the_proxy_ip_header() -> None:
             secret_key=REAL_SECRET,
             database_url=REAL_DB,
         )
+
+
+def test_production_requires_static_dir() -> None:
+    with pytest.raises(ValidationError, match="STATIC_DIR"):
+        Settings(environment="production", secret_key=REAL_SECRET, database_url=REAL_DB)

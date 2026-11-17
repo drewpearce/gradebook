@@ -8,35 +8,42 @@ from starlette.types import Scope
 from app.api.routers import classes, coursework, grades, scores, students
 from app.auth import router as auth_router
 from app.auth.deps import get_current_teacher
-from app.config import settings
+from app.config import Settings, settings
 
-_prod = settings.environment == "production"
-
-# The JSON API, mounted under /api (the SPA owns every other path).
-api = FastAPI(
-    title="Gradebook API",
-    docs_url=None if _prod else "/docs",
-    redoc_url=None if _prod else "/redoc",
-    openapi_url=None if _prod else "/openapi.json",
+# 'unsafe-inline' styles: Radix Dialog's scroll lock injects a <style> element without a
+# nonce. Low risk while scripts stay 'self'.
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; style-src 'self' 'unsafe-inline'; base-uri 'none'; "
+    "frame-ancestors 'none'; form-action 'self'"
 )
 
 
-@api.get("/health")
 def health() -> dict[str, str]:
     """Liveness check. Deliberately does not touch the database."""
     return {"status": "ok"}
 
 
-# Open: authentication.
-api.include_router(auth_router.router)
+def create_api(production: bool) -> FastAPI:
+    """The JSON API, mounted under /api (the SPA owns every other path)."""
+    api = FastAPI(
+        title="Gradebook API",
+        docs_url=None if production else "/docs",
+        redoc_url=None if production else "/redoc",
+        openapi_url=None if production else "/openapi.json",
+    )
+    api.get("/health")(health)
 
-# Protected: every data endpoint requires a valid Teacher token.
-_auth = [Depends(get_current_teacher)]
-api.include_router(classes.router, dependencies=_auth)
-api.include_router(students.router, dependencies=_auth)
-api.include_router(coursework.router, dependencies=_auth)
-api.include_router(scores.router, dependencies=_auth)
-api.include_router(grades.router, dependencies=_auth)
+    # Open: authentication.
+    api.include_router(auth_router.router)
+
+    # Protected: every data endpoint requires a valid Teacher token.
+    auth = [Depends(get_current_teacher)]
+    api.include_router(classes.router, dependencies=auth)
+    api.include_router(students.router, dependencies=auth)
+    api.include_router(coursework.router, dependencies=auth)
+    api.include_router(scores.router, dependencies=auth)
+    api.include_router(grades.router, dependencies=auth)
+    return api
 
 
 class SPAStaticFiles(StaticFiles):
@@ -56,22 +63,28 @@ class SPAStaticFiles(StaticFiles):
         return response
 
 
-app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-app.mount("/api", api)
-if settings.static_dir:
-    app.mount("/", SPAStaticFiles(directory=settings.static_dir, html=True), name="spa")
+def create_app(config: Settings, api: FastAPI) -> FastAPI:
+    """The served app: ``api`` under /api, the built SPA at / (when configured)."""
+    production = config.environment == "production"
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    app.mount("/api", api)
+    if config.static_dir:
+        app.mount("/", SPAStaticFiles(directory=config.static_dir, html=True), name="spa")
+
+    @app.middleware("http")
+    async def security_headers(  # pyright: ignore[reportUnusedFunction]
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "same-origin"
+        if production:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000"
+            response.headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
+        return response
+
+    return app
 
 
-@app.middleware("http")
-async def security_headers(
-    request: Request, call_next: Callable[[Request], Awaitable[Response]]
-) -> Response:
-    response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Referrer-Policy"] = "same-origin"
-    if _prod:
-        response.headers["Strict-Transport-Security"] = "max-age=31536000"
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
-        )
-    return response
+api = create_api(settings.environment == "production")
+app = create_app(settings, api)

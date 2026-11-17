@@ -22,7 +22,9 @@ class Settings(BaseSettings):
 
     # Auth. secret_key MUST be overridden outside dev (see the guard below).
     secret_key: str = DEFAULT_SECRET_KEY
-    access_token_expire_minutes: int = 720  # 12 hours
+    # 12 hours: covers one school day without a re-login. Kept for production (#23):
+    # one teacher, and a password reset revokes every token (see the `pwd` claim).
+    access_token_expire_minutes: int = 720
 
     # Directory of the built SPA to serve at "/" (empty = API only).
     static_dir: str = ""
@@ -54,6 +56,9 @@ class Settings(BaseSettings):
             raise ValueError(
                 "DATABASE_URL must be set to a non-default value when ENVIRONMENT is not 'dev'."
             )
+        if self.environment == "production" and not self.static_dir:
+            # Without it the app boots API-only and "/" is a 404.
+            raise ValueError("STATIC_DIR must be set in production.")
         return self
 
 
