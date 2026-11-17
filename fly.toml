@@ -1,0 +1,33 @@
+# Set `app` to your Fly app name (APP in docs/runbook.md, First-time setup step M1).
+app = "CHANGE-ME-gradebook"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  # Uses MIGRATIONS_DATABASE_URL (owner role) from the Fly secrets.
+  release_command = "alembic -c /app/alembic.ini upgrade head"
+
+[env]
+  ENVIRONMENT = "production"
+  TRUST_PROXY_IP_HEADER = "true"
+  STATIC_DIR = "/app/static"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/api/health"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

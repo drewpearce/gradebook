@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.config import DEFAULT_DATABASE_URL, DEFAULT_SECRET_KEY, Settings
+from app.config import DEFAULT_DATABASE_URL, DEFAULT_SECRET_KEY, Settings, normalize_database_url
 
 REAL_SECRET = "a-real-secret-of-sufficient-length!!"
 REAL_DB = "postgresql+psycopg://u:p@db.example/gradebook"
@@ -29,6 +29,21 @@ def test_real_secret_is_accepted_outside_dev() -> None:
 def test_plain_postgres_url_is_rewritten_to_psycopg(prefix: str) -> None:
     settings = Settings(database_url=f"{prefix}u:p@host/db")
     assert settings.database_url == "postgresql+psycopg://u:p@host/db"
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("postgres://u:p@h/db", "postgresql+psycopg://u:p@h/db"),
+        (
+            "postgresql://u:p%40@h/db?sslmode=require",
+            "postgresql+psycopg://u:p%40@h/db?sslmode=require",
+        ),
+        ("postgresql+psycopg://u:p@h/db", "postgresql+psycopg://u:p@h/db"),
+    ],
+)
+def test_normalize_database_url(url: str, expected: str) -> None:
+    assert normalize_database_url(url) == expected
 
 
 def test_psycopg_url_is_left_unchanged() -> None:

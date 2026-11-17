@@ -56,6 +56,11 @@ uv run uvicorn app.main:app --reload
 curl localhost:8000/api/health  # -> {"status":"ok"}
 ```
 
+## Deploy
+
+Production is Fly.io + Neon. See [`docs/runbook.md`](../docs/runbook.md). Migrations there use
+`MIGRATIONS_DATABASE_URL` (the schema-owner role) when set, else `DATABASE_URL`.
+
 ## Checks
 
 ```bash
