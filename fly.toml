@@ -1,5 +1,5 @@
 # Set `app` to your Fly app name (APP in docs/runbook.md, First-time setup step M1).
-app = "CHANGE-ME-gradebook"
+app = "gradebook-caffdev"
 primary_region = "iad"
 
 [build]

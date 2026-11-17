@@ -1,4 +1,4 @@
 # Set `app` to BACKUP_APP (docs/runbook.md, First-time setup step M5).
 # No services: this app only holds the image for a scheduled machine.
-app = "CHANGE-ME-gradebook-backup"
+app = "gradebook-caffdev-backup"
 primary_region = "iad"
