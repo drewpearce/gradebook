@@ -36,7 +36,7 @@ read-only role.
   with a healthchecks.io dead-man check that emails on a missed or failed run.
 - A second safety net is Neon's own point-in-time restore window (Neon's free-plan restore
   window; check the current limit on Neon's pricing page).
-- `pg_dump` and `pg_restore` must be at least the Neon server's major version (17).
+- `pg_dump` and `pg_restore` must be at least the Neon server's major version (18).
 - `MIGRATIONS_DATABASE_URL` is a Fly secret, and Fly exposes secrets to every machine in the
   app, so the running app can read the owner URL. The DML-only role protects against SQL
   injection, not against code execution in the app. For the stronger guarantee, run

@@ -32,7 +32,7 @@ Keep them in a password manager entry named "gradebook prod".
 
 ### M2. Neon project and roles
 
-1. Sign up at neon.tech (free plan). Create a project named `gradebook`, **Postgres 17**,
+1. Sign up at neon.tech (free plan). Create a project named `gradebook`, **Postgres 18**,
    region **AWS US East (N. Virginia), us-east-1** (closest to Fly `iad`).
 2. In the project, rename the default database to `gradebook`, or create it. The
    console-created role (for example `neondb_owner`, or rename it `gradebook_owner`) is the
@@ -59,7 +59,7 @@ Keep them in a password manager entry named "gradebook prod".
 5. Build the two URLs from the owner URL by swapping user and password:
    - `gradebook_app:<hex>@...` is `DATABASE_URL`
    - `gradebook_backup:<hex>@...` is `BACKUP_DATABASE_URL`
-6. Optional local check: `psql "$OWNER_URL" -c 'select version()'` shows 17.x.
+6. Optional local check: `psql "$OWNER_URL" -c 'select version()'` shows 18.x.
 
 ### M3. Fly secrets and first deploy
 
@@ -123,10 +123,10 @@ fly machine run registry.fly.io/BACKUP_APP:nightly -a BACKUP_APP \
 1. Download the newest object (see [Backups](#backups)):
    `aws s3 cp s3://gradebook-backups/<key> /tmp/gb.dump --endpoint-url $R2_ENDPOINT`.
    Use the R2 keys in a local shell env. Do not store them in the repo.
-2. Restore it into a throwaway **postgres:17** container. Local compose is PG16, and a PG17
+2. Restore it into a throwaway **postgres:18** container. Local compose is PG16, and a PG18
    dump fails on it.
    ```bash
-   docker run -d --rm --name gb-restore -e POSTGRES_PASSWORD=scratch -v /tmp/gb.dump:/gb.dump:ro postgres:17
+   docker run -d --rm --name gb-restore -e POSTGRES_PASSWORD=scratch -v /tmp/gb.dump:/gb.dump:ro postgres:18
    sleep 5
    docker exec gb-restore createdb -U postgres scratch
    docker exec gb-restore pg_restore --no-owner --no-acl -U postgres -d scratch /gb.dump
@@ -230,13 +230,13 @@ Restore to a scratch database first, or to prod only if prod is lost.
 
 ```bash
 aws s3 cp s3://gradebook-backups/gradebook/<key>.dump /tmp/gb.dump --endpoint-url "$R2_ENDPOINT"
-docker run --rm -v /tmp:/tmp postgres:17 \
+docker run --rm -v /tmp:/tmp postgres:18 \
   pg_restore --no-owner --no-acl --clean --if-exists -d "<target url>" /tmp/gb.dump
 rm /tmp/gb.dump
 ```
 
-Use pg_restore **17** (the `postgres:17` image does this). An older client or server rejects a
-PG17 dump. `<target url>` is a `postgresql://` URL for the owner role. For a scratch restore,
+Use pg_restore **18** (the `postgres:18` image does this). An older client or server rejects a
+PG18 dump. `<target url>` is a `postgresql://` URL for the owner role. For a scratch restore,
 see M6 above. Delete the dump afterwards: it holds student data.
 
 ## Rotate secrets
