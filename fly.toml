@@ -12,7 +12,6 @@ primary_region = "iad"
 [env]
   ENVIRONMENT = "production"
   TRUST_PROXY_IP_HEADER = "true"
-  STATIC_DIR = "/app/static"
 
 [http_service]
   internal_port = 8080

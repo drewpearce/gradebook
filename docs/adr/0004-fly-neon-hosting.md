@@ -12,7 +12,8 @@ in a separate Fly app. Deploys are a manual `fly deploy`. The site stays on the
 [`docs/runbook.md`](../runbook.md).
 
 The app role has data access only; migrations run as the schema owner
-(`MIGRATIONS_DATABASE_URL`). Backups use a third, read-only role.
+(`MIGRATIONS_DATABASE_URL`; see the limit under Consequences). Backups use a third,
+read-only role.
 
 ## Considered options
 
@@ -36,3 +37,7 @@ The app role has data access only; migrations run as the schema owner
 - A second safety net is Neon's own point-in-time restore window (Neon's free-plan restore
   window; check the current limit on Neon's pricing page).
 - `pg_dump` and `pg_restore` must be at least the Neon server's major version (17).
+- `MIGRATIONS_DATABASE_URL` is a Fly secret, and Fly exposes secrets to every machine in the
+  app, so the running app can read the owner URL. The DML-only role protects against SQL
+  injection, not against code execution in the app. For the stronger guarantee, run
+  `alembic upgrade head` from a local shell with the owner URL and drop `release_command`.

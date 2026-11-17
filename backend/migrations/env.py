@@ -5,17 +5,17 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 import app.models  # noqa: F401  (registers every table on Base.metadata)
-from app.config import normalize_database_url, settings
+from app.config import alembic_url, settings
 from app.db import Base
 
 # Alembic Config object, providing access to the values within alembic.ini.
 config = context.config
 
-# Inject the database URL rather than hardcoding it in alembic.ini. In production
-# MIGRATIONS_DATABASE_URL is the schema-owner role; DATABASE_URL (the app role) is DML-only.
-url = normalize_database_url(os.environ.get("MIGRATIONS_DATABASE_URL") or settings.database_url)
-# configparser treats "%" as interpolation, so escape it (e.g. a URL-encoded password).
-config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
+# Inject the database URL rather than hardcoding it in alembic.ini.
+config.set_main_option(
+    "sqlalchemy.url",
+    alembic_url(os.environ.get("MIGRATIONS_DATABASE_URL"), settings.database_url),
+)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.config import DEFAULT_DATABASE_URL, DEFAULT_SECRET_KEY, Settings, normalize_database_url
+from app.config import DEFAULT_DATABASE_URL, DEFAULT_SECRET_KEY, Settings, alembic_url
 
 REAL_SECRET = "a-real-secret-of-sufficient-length!!"
 REAL_DB = "postgresql+psycopg://u:p@db.example/gradebook"
@@ -31,19 +31,19 @@ def test_plain_postgres_url_is_rewritten_to_psycopg(prefix: str) -> None:
     assert settings.database_url == "postgresql+psycopg://u:p@host/db"
 
 
-@pytest.mark.parametrize(
-    ("url", "expected"),
-    [
-        ("postgres://u:p@h/db", "postgresql+psycopg://u:p@h/db"),
-        (
-            "postgresql://u:p%40@h/db?sslmode=require",
-            "postgresql+psycopg://u:p%40@h/db?sslmode=require",
-        ),
-        ("postgresql+psycopg://u:p@h/db", "postgresql+psycopg://u:p@h/db"),
-    ],
-)
-def test_normalize_database_url(url: str, expected: str) -> None:
-    assert normalize_database_url(url) == expected
+def test_alembic_url_prefers_the_migrations_url() -> None:
+    assert alembic_url("postgresql://owner:p@h/db", "postgresql://app:p@h/db") == (
+        "postgresql+psycopg://owner:p@h/db"
+    )
+
+
+def test_alembic_url_falls_back_to_the_app_url() -> None:
+    assert alembic_url(None, "postgresql://app:p@h/db") == "postgresql+psycopg://app:p@h/db"
+
+
+def test_alembic_url_escapes_percent_for_configparser() -> None:
+    url = alembic_url("postgresql://u:p%40@h/db?sslmode=require", "unused")
+    assert url == "postgresql+psycopg://u:p%%40@h/db?sslmode=require"
 
 
 def test_psycopg_url_is_left_unchanged() -> None:

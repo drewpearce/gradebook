@@ -71,8 +71,8 @@ fly secrets set -a APP --stage \
 fly deploy            # builds, runs release_command (alembic upgrade head), starts the machine
 ```
 
-- Run the deploy in a terminal tab so the output is visible. `ENVIRONMENT`,
-  `TRUST_PROXY_IP_HEADER` and `STATIC_DIR` come from `[env]` in `fly.toml`.
+- Run the deploy in a terminal tab so the output is visible. `ENVIRONMENT` and
+  `TRUST_PROXY_IP_HEADER` come from `[env]` in `fly.toml`; `STATIC_DIR` from the Dockerfile.
 - If the release_command fails, run `fly logs -a APP` and check the URL and the grants.
 - After the first deploy, confirm the app role is not the owner:
   `psql "$APP_URL" -c 'create table x(i int)'` must fail with "permission denied for schema public".
@@ -92,7 +92,7 @@ fly deploy            # builds, runs release_command (alembic upgrade head), sta
 ### M4b. healthchecks.io failure alert
 
 1. Sign up at healthchecks.io (free plan) and create the check "gradebook nightly backup",
-   with **Period 1 day** and **Grace 6 hours**. Email notifications are on by default.
+   with **Period 1 day** and **Grace 12 hours** (`--schedule daily` runs at a best-effort time, so gaps can exceed 24 h). Email notifications are on by default.
 2. Copy its ping URL (`https://hc-ping.com/<uuid>`). It becomes the `HC_PING_URL` secret in M5.
 
 ### M5. Backup app and schedule
@@ -209,7 +209,7 @@ The `aws` command needs the R2 keys in your local shell env (`AWS_ACCESS_KEY_ID`
 `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION=auto`). Do not store them in the repo.
 
 **Failure alert:** healthchecks.io emails you when the nightly ping is missing (Period 1
-day, Grace 6 hours) or when the script pings `/fail`. When it fires, check
+day, Grace 12 hours) or when the script pings `/fail` (any failure, including a missing secret). When it fires, check
 `fly logs -a BACKUP_APP`. Fix it before the 30-day R2 lifecycle rule deletes the last good dump.
 
 **Update the backup image** (after editing `ops/backup/`): `fly deploy --build-only --push`

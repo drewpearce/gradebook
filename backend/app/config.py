@@ -18,6 +18,15 @@ def normalize_database_url(url: str) -> str:
     return url
 
 
+def alembic_url(migrations_url: str | None, app_url: str) -> str:
+    """The URL Alembic connects with, escaped for its configparser.
+
+    Prefers the schema-owner ``MIGRATIONS_DATABASE_URL``; the app role is DML-only in
+    production. configparser treats "%" as interpolation (e.g. a URL-encoded password).
+    """
+    return normalize_database_url(migrations_url or app_url).replace("%", "%%")
+
+
 class Settings(BaseSettings):
     """Application settings, read from the environment or a local ``.env`` file."""
 
