@@ -8,7 +8,7 @@ import { useSubjectScores } from '@/api/scores'
 import { QueryState } from '@/components/QueryState'
 import { Badge } from '@/components/ui/badge'
 import { assignmentAppliesToStudent } from '@/lib/audience'
-import { formatPercent, formatPoints } from '@/lib/format'
+import { formatPercent, formatPoints, gradeLabel } from '@/lib/format'
 
 type Assignment = components['schemas']['AssignmentRead']
 type GradeLevel = components['schemas']['GradeLevelRead']
@@ -76,10 +76,7 @@ export function StudentGradeRow({
           {grade.is_incomplete ? (
             <Badge variant="warning">Incomplete</Badge>
           ) : (
-            <Badge variant="success">
-              {grade.percent !== null ? formatPercent(grade.percent) : ''} ·{' '}
-              {grade.letter}
-            </Badge>
+            <Badge variant="success">{gradeLabel(grade.percent, grade.letter)}</Badge>
           )}
           {summary ? <span className="text-xs text-amber-700">{summary}</span> : null}
         </span>

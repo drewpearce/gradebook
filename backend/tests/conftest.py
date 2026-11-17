@@ -9,12 +9,12 @@ from sqlalchemy.orm import Session
 import app.models  # noqa: F401  # pyright: ignore[reportUnusedImport]  (registers tables)
 from app.config import settings
 from app.db import Base
-from app.main import app
+from app.main import api
 
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(app)
+    return TestClient(api)
 
 
 @pytest.fixture(scope="session")

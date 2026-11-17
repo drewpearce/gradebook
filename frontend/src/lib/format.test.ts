@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatPercent, formatPoints } from './format'
+import { formatPercent, formatPoints, gradeLabel } from './format'
 
 describe('formatPoints', () => {
   it.each([
@@ -21,5 +21,16 @@ describe('formatPercent', () => {
     ['abc', 'abc%'],
   ])('formats %s as %s', (input, expected) => {
     expect(formatPercent(input)).toBe(expected)
+  })
+})
+
+describe('gradeLabel', () => {
+  it.each([
+    ['88.50', 'B+', '88.5% · B+'],
+    ['88.50', null, '88.5%'],
+    [null, 'B+', 'B+'],
+    [null, null, ''],
+  ])('labels %s / %s as %s', (percent, letter, expected) => {
+    expect(gradeLabel(percent, letter)).toBe(expected)
   })
 })

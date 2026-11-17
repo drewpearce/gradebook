@@ -1,7 +1,10 @@
 import pytest
 from pydantic import ValidationError
 
-from app.config import DEFAULT_SECRET_KEY, Settings
+from app.config import DEFAULT_DATABASE_URL, DEFAULT_SECRET_KEY, Settings
+
+REAL_SECRET = "a-real-secret-of-sufficient-length!!"
+REAL_DB = "postgresql+psycopg://u:p@db.example/gradebook"
 
 
 def test_default_secret_is_rejected_outside_dev() -> None:
@@ -15,7 +18,7 @@ def test_default_secret_is_allowed_in_dev() -> None:
 
 
 def test_real_secret_is_accepted_outside_dev() -> None:
-    settings = Settings(environment="production", secret_key="a-real-secret-of-sufficient-length!!")
+    settings = Settings(environment="production", secret_key=REAL_SECRET, database_url=REAL_DB)
     assert settings.environment == "production"
 
 
@@ -28,3 +31,22 @@ def test_plain_postgres_url_is_rewritten_to_psycopg(prefix: str) -> None:
 def test_psycopg_url_is_left_unchanged() -> None:
     url = "postgresql+psycopg://u:p@host/db"
     assert Settings(database_url=url).database_url == url
+
+
+def test_default_database_url_is_rejected_in_production() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            environment="production", secret_key=REAL_SECRET, database_url=DEFAULT_DATABASE_URL
+        )
+
+
+def test_fly_requires_production_environment() -> None:
+    with pytest.raises(ValidationError, match="ENVIRONMENT must be 'production' on Fly"):
+        Settings(environment="dev", fly_app_name="gradebook")
+    settings = Settings(
+        environment="production",
+        fly_app_name="gradebook",
+        secret_key=REAL_SECRET,
+        database_url=REAL_DB,
+    )
+    assert settings.fly_app_name == "gradebook"

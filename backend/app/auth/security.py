@@ -1,4 +1,5 @@
 import datetime as dt
+import hashlib
 import uuid
 
 import bcrypt
@@ -20,10 +21,16 @@ def verify_password(password: str, password_hash: str) -> bool:
     return bcrypt.checkpw(password.encode(), password_hash.encode())
 
 
-def create_access_token(teacher_id: uuid.UUID) -> str:
+def password_fingerprint(password_hash: str) -> str:
+    """Short digest of the hash baked into tokens, so a password reset revokes them."""
+    return hashlib.sha256(password_hash.encode()).hexdigest()[:16]
+
+
+def create_access_token(teacher_id: uuid.UUID, password_hash: str) -> str:
     now = dt.datetime.now(dt.UTC)
     payload = {
         "sub": str(teacher_id),
+        "pwd": password_fingerprint(password_hash),
         "iat": now,
         "exp": now + dt.timedelta(minutes=settings.access_token_expire_minutes),
     }
@@ -34,8 +41,8 @@ def create_access_token(teacher_id: uuid.UUID) -> str:
     )
 
 
-def decode_token(token: str) -> uuid.UUID:
-    """Return the teacher id from a valid token.
+def decode_token(token: str) -> tuple[uuid.UUID, str]:
+    """Return ``(teacher_id, password_fingerprint)`` from a valid token.
 
     Raises ``jwt.InvalidTokenError`` (expired / bad signature / malformed) or
     ``ValueError`` / ``KeyError`` if the ``sub`` claim isn't a UUID.
@@ -44,6 +51,6 @@ def decode_token(token: str) -> uuid.UUID:
         token,
         settings.secret_key,
         algorithms=["HS256"],
-        options={"require": ["exp", "sub"]},
+        options={"require": ["exp", "sub", "pwd"]},
     )
-    return uuid.UUID(payload["sub"])
+    return uuid.UUID(payload["sub"]), str(payload["pwd"])

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { apiErrorMessage } from '@/lib/errors'
 
 export function LoginPage() {
   const { isAuthenticated, signIn } = useAuth()
@@ -26,8 +27,8 @@ export function LoginPage() {
     try {
       await signIn(username, password)
       navigate('/', { replace: true })
-    } catch {
-      setError('Incorrect username or password')
+    } catch (err) {
+      setError(apiErrorMessage(err))
     } finally {
       setSubmitting(false)
     }

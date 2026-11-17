@@ -3,7 +3,7 @@ import createClient, { type Middleware } from 'openapi-fetch'
 import type { paths } from '@/api/schema'
 import { clearToken, getToken } from '@/auth/token'
 
-export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+export const API_URL = '/api'
 
 const authMiddleware: Middleware = {
   onRequest({ request }) {
@@ -42,13 +42,34 @@ export async function unwrap<T>(
 
 /** Log in via the OAuth2 password flow (form-encoded) and return the bearer token. */
 export async function login(username: string, password: string): Promise<string> {
-  const response = await fetch(`${API_URL}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ username, password }),
-  })
-  if (!response.ok) {
+  const serverError = new Error(
+    'Could not sign in. The server had a problem — try again.',
+  )
+  let response: Response
+  try {
+    response = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ username, password }),
+    })
+  } catch {
+    throw serverError
+  }
+  if (response.status === 401) {
     throw new Error('Incorrect username or password')
+  }
+  if (response.status === 429) {
+    const seconds = Number(response.headers.get('Retry-After'))
+    if (!(seconds > 0)) {
+      throw new Error('Too many login attempts. Try again later.')
+    }
+    const minutes = Math.max(1, Math.ceil(seconds / 60))
+    throw new Error(
+      `Too many login attempts. Try again in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}.`,
+    )
+  }
+  if (!response.ok) {
+    throw serverError
   }
   const data = (await response.json()) as { access_token: string }
   return data.access_token
