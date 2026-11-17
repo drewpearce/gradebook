@@ -8,3 +8,10 @@ export function formatPoints(value: string): string {
 export function formatPercent(value: string): string {
   return `${formatPoints(value)}%`
 }
+
+/** Join the available parts of a grade ("88.5% · B+"); either may be absent. */
+export function gradeLabel(percent: string | null, letter: string | null): string {
+  return [percent !== null ? formatPercent(percent) : null, letter]
+    .filter((part) => part !== null)
+    .join(' · ')
+}

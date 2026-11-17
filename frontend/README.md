@@ -9,14 +9,13 @@ See [`ADR-0001`](../docs/adr/0001-spa-plus-json-api.md).
 
 ```bash
 npm install
-cp .env.example .env   # VITE_API_URL — defaults to http://localhost:8000
 ```
 
 ## Run
 
 Start the backend first (see [`../backend/README.md`](../backend/README.md)) — it must
-be running and have a Teacher (via `uv run python -m app.cli create-teacher`), and its
-CORS allows `http://localhost:5173`.
+be running and have a Teacher (via `uv run python -m app.cli create-teacher`), and the
+Vite dev server proxies `/api` to it on `http://localhost:8000`.
 
 ```bash
 npm run dev        # http://localhost:5173

@@ -33,15 +33,16 @@ Set a real `SECRET_KEY` in `.env` before deploying — the default is insecure.
 ## Auth
 
 Single-teacher, bearer-JWT auth (see [`ADR-0001`](../docs/adr/0001-spa-plus-json-api.md)).
-Data endpoints require a token; `/health` and `/auth/login` are open.
+The API is served under `/api`. Data endpoints require a token; `/api/health` and
+`/api/auth/login` are open. Login is rate limited per IP and per IP + username.
 
 ```bash
 # Log in (OAuth2 password form) → {"access_token": "...", "token_type": "bearer"}
-curl -s -X POST localhost:8000/auth/login \
+curl -s -X POST localhost:8000/api/auth/login \
   -d 'username=katie&password=YOUR_PASSWORD'
 
 # Call a protected endpoint
-curl localhost:8000/classes -H "Authorization: Bearer $TOKEN"
+curl localhost:8000/api/classes -H "Authorization: Bearer $TOKEN"
 ```
 
 `python -m app.cli create-teacher --username <name>` also resets the password if the
@@ -52,7 +53,7 @@ teacher already exists.
 ```bash
 uv run uvicorn app.main:app --reload
 # Health check:
-curl localhost:8000/health   # -> {"status":"ok"}
+curl localhost:8000/api/health  # -> {"status":"ok"}
 ```
 
 ## Checks
@@ -73,6 +74,6 @@ Change the port in `TEST_DB` if your local Postgres does not use 5432.
 
 ## Layout
 
-- `app/` — application code (`main` app + `/health`, `config` settings, `db` engine/session/`Base`).
+- `app/` — application code (`main` app + `/api/health`, `config` settings, `db` engine/session/`Base`).
 - `migrations/` — Alembic environment and versioned migrations.
 - `tests/` — pytest suite.

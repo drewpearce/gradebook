@@ -5,9 +5,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_teacher
+from app.auth.rate_limit import ip_limiter, pair_limiter
 from app.auth.security import hash_password
 from app.db import get_db
-from app.main import app
+from app.main import api
 from app.models import Teacher
 
 TEACHER_USERNAME = "teacher"
@@ -30,22 +31,28 @@ def teacher(db_session: Session) -> Teacher:
 @pytest.fixture
 def anon_client(db_session: Session) -> Iterator[TestClient]:
     """Client with the real auth dependency enforced (only the DB is overridden)."""
-    app.dependency_overrides[get_db] = lambda: db_session
+    api.dependency_overrides[get_db] = lambda: db_session
     try:
-        with TestClient(app) as test_client:
+        with TestClient(api) as test_client:
             yield test_client
     finally:
-        app.dependency_overrides.clear()
+        api.dependency_overrides.clear()
 
 
 @pytest.fixture
 def client(db_session: Session, teacher: Teacher) -> Iterator[TestClient]:
     """Auth-bypassed client for CRUD/grade tests: overrides both the DB session and
     the current-teacher dependency, so those tests don't each have to log in."""
-    app.dependency_overrides[get_db] = lambda: db_session
-    app.dependency_overrides[get_current_teacher] = lambda: teacher
+    api.dependency_overrides[get_db] = lambda: db_session
+    api.dependency_overrides[get_current_teacher] = lambda: teacher
     try:
-        with TestClient(app) as test_client:
+        with TestClient(api) as test_client:
             yield test_client
     finally:
-        app.dependency_overrides.clear()
+        api.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def clear_limiters() -> None:
+    pair_limiter.clear()
+    ip_limiter.clear()
