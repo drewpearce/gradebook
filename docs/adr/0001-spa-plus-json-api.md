@@ -30,5 +30,8 @@ React/TypeScript.
   from FastAPI's OpenAPI schema to keep the frontend in sync).
 - Auth is token/session across an origin boundary — a real decision to make when
   we get to auth, not free as it would be in a monolith.
+  *Amended by [ADR-0004](0004-fly-neon-hosting.md): in production the app is
+  same-origin (the API is served under `/api` next to the SPA), the Vite proxy makes
+  dev same-origin too, and CORS is removed.*
 - PostgreSQL is a deliberate lock-in for relational integrity (students,
   assignments, scores, audiences) over a document store.

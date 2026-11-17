@@ -9,6 +9,24 @@ DEFAULT_SECRET_KEY = "dev-insecure-secret-change-in-production"
 DEFAULT_DATABASE_URL = "postgresql+psycopg://gradebook:gradebook@localhost:5432/gradebook"
 
 
+def normalize_database_url(url: str) -> str:
+    """Rewrite a plain postgres(ql):// URL to the psycopg driver; leave others unchanged."""
+    # Hosts (e.g. Neon) hand out plain URLs; SQLAlchemy would load psycopg2.
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url.removeprefix(prefix)
+    return url
+
+
+def alembic_url(migrations_url: str | None, app_url: str) -> str:
+    """The URL Alembic connects with, escaped for its configparser.
+
+    Prefers the schema-owner ``MIGRATIONS_DATABASE_URL``; the app role is DML-only in
+    production. configparser treats "%" as interpolation (e.g. a URL-encoded password).
+    """
+    return normalize_database_url(migrations_url or app_url).replace("%", "%%")
+
+
 class Settings(BaseSettings):
     """Application settings, read from the environment or a local ``.env`` file."""
 
@@ -34,11 +52,7 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def _use_psycopg_driver(cls, url: str) -> str:
-        # Hosts (e.g. Neon) hand out plain postgres(ql):// URLs; SQLAlchemy would load psycopg2.
-        for prefix in ("postgres://", "postgresql://"):
-            if url.startswith(prefix):
-                return "postgresql+psycopg://" + url.removeprefix(prefix)
-        return url
+        return normalize_database_url(url)
 
     @model_validator(mode="after")
     def _require_real_config_outside_dev(self) -> Self:

@@ -1,17 +1,21 @@
+import os
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 import app.models  # noqa: F401  (registers every table on Base.metadata)
-from app.config import settings
+from app.config import alembic_url, settings
 from app.db import Base
 
 # Alembic Config object, providing access to the values within alembic.ini.
 config = context.config
 
-# Inject the application's database URL rather than hardcoding it in alembic.ini.
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Inject the database URL rather than hardcoding it in alembic.ini.
+config.set_main_option(
+    "sqlalchemy.url",
+    alembic_url(os.environ.get("MIGRATIONS_DATABASE_URL"), settings.database_url),
+)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
