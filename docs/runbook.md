@@ -68,12 +68,16 @@ fly secrets set -a APP --stage \
   DATABASE_URL='postgresql://gradebook_app:...@ep-xxx.us-east-1.aws.neon.tech/gradebook?sslmode=require' \
   MIGRATIONS_DATABASE_URL='postgresql://gradebook_owner:...@.../gradebook?sslmode=require' \
   SECRET_KEY='<token_urlsafe>'
-fly deploy            # builds, runs release_command (alembic upgrade head), starts the machine
+fly deploy -a APP --ha=false   # one machine; builds, runs release_command, starts the machine
 ```
 
 - Run the deploy in a terminal tab so the output is visible. `ENVIRONMENT` and
   `TRUST_PROXY_IP_HEADER` come from `[env]` in `fly.toml`; `STATIC_DIR` from the Dockerfile.
-- If the release_command fails, run `fly logs -a APP` and check the URL and the grants.
+- `--ha=false` matters on the first deploy only: without it Fly creates two machines.
+- If the release_command fails with `permission denied for schema public`, the URLs are
+  swapped: `MIGRATIONS_DATABASE_URL` must be the owner (`neondb_owner`), not the app or
+  backup role. Re-set it with `fly secrets set --stage` and deploy again. Nothing is written
+  until migrations succeed. Other failures: `fly logs -a APP`, then check the URL and grants.
 - After the first deploy, confirm the app role is not the owner:
   `psql "$APP_URL" -c 'create table x(i int)'` must fail with "permission denied for schema public".
 
@@ -108,34 +112,22 @@ fly secrets set -a BACKUP_APP --stage \
   AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_DEFAULT_REGION=auto \
   R2_ENDPOINT='https://<account_id>.r2.cloudflarestorage.com' R2_BUCKET=gradebook-backups \
   HC_PING_URL='https://hc-ping.com/<uuid>'
-fly deploy --build-only --push --image-label nightly   # image: registry.fly.io/BACKUP_APP:nightly
-fly machine run registry.fly.io/BACKUP_APP:nightly -a BACKUP_APP \
-  --schedule daily --region iad --restart no --vm-memory 256 --name nightly-backup
+fly deploy --build-only --push --local-only --image-label nightly-1   # registry.fly.io/BACKUP_APP:nightly-1
+fly machine run registry.fly.io/BACKUP_APP:nightly-1 -a BACKUP_APP \
+  --schedule daily --region iad --restart no \
+  --vm-cpu-kind shared --vm-size shared-cpu-1x --vm-memory 256 --name nightly-backup
 ```
 
-- Check the exact `fly machine run` and `--image-label` flags against `fly machine run --help`
-  when you run this. Flyctl changes.
-- Run one now: `fly machine start <id> -a BACKUP_APP`, then `fly logs -a BACKUP_APP` and look
-  for `backup ok: gradebook/...`. The healthchecks.io check turns green.
+- The `--vm-cpu-kind`/`--vm-size` flags are required: without them flyctl fails with
+  `invalid CPU kind ''`.
+- `fly machine run` starts the machine once right away, so this is the first backup. Check
+  `fly logs -a BACKUP_APP --no-tail` for `backup ok: gradebook/...`. The healthchecks.io check
+  turns green.
 
 ### M6. Prove one restore
 
-1. Download the newest object (see [Backups](#backups)):
-   `aws s3 cp s3://gradebook-backups/<key> /tmp/gb.dump --endpoint-url $R2_ENDPOINT`.
-   Use the R2 keys in a local shell env. Do not store them in the repo.
-2. Restore it into a throwaway **postgres:18** container. Local compose is PG16, and a PG18
-   dump fails on it.
-   ```bash
-   docker run -d --rm --name gb-restore -e POSTGRES_PASSWORD=scratch -v /tmp/gb.dump:/gb.dump:ro postgres:18
-   sleep 5
-   docker exec gb-restore createdb -U postgres scratch
-   docker exec gb-restore pg_restore --no-owner --no-acl -U postgres -d scratch /gb.dump
-   ```
-3. Compare row counts for `teachers, classes, students, subjects, scores`:
-   - prod: `psql "$BACKUP_DATABASE_URL" -c 'select count(*) from ...'`
-   - restore: `docker exec gb-restore psql -U postgres -d scratch -c '...'`
-4. Clean up: `docker stop gb-restore` (the `--rm` flag removes the container) and
-   `rm /tmp/gb.dump`. The dump holds student data, so it must not stay on disk.
+Run the [restore drill](#restore-drill). Every line must show `prod=` equal to `restored=`.
+Repeat it once real data exists: on an empty database it proves only the schema.
 
 ### M7. Katie's account and the prod smoke test
 
@@ -172,6 +164,9 @@ fly logs -a APP
 
 The release_command runs `alembic -c /app/alembic.ini upgrade head` with the owner role
 (`MIGRATIONS_DATABASE_URL`). If it fails, the deploy stops and the old version keeps running.
+
+If the build sits at `Waiting for depot builder...` for more than a few minutes, press Ctrl-C
+and add `--local-only`. Docker on your machine then builds the image (for amd64) and pushes it.
 
 ## Run migrations by hand
 
@@ -224,9 +219,27 @@ fly machine update <id> --image registry.fly.io/BACKUP_APP:nightly-2 -a BACKUP_A
 A second safety net is Neon's own point-in-time restore window (Neon's free-plan restore
 window; check the current limit on Neon's pricing page).
 
+## Restore drill
+
+`ops/backup/restore-check.sh` restores the newest dump into a throwaway Postgres on a one-off
+`BACKUP_APP` machine and prints prod vs restored counts for every table. The dump and the
+secrets stay on Fly. Run it from the repo root:
+
+```bash
+fly machine run registry.fly.io/BACKUP_APP:nightly-1 bash /restore.sh -a BACKUP_APP \
+  --file-local /restore.sh=ops/backup/restore-check.sh \
+  --region iad --restart no --rm --vm-cpu-kind shared --vm-size shared-cpu-1x --vm-memory 512 \
+  --name restore-check
+fly logs -a BACKUP_APP --no-tail | grep -E "restoring:|prod=|restore check done"
+```
+
+Mount the script as a file. Do not pass `bash -c "..."`: flyctl reads `-c` as its own
+`--config` flag. Use the image label the nightly machine runs.
+
 ## Restore
 
-Restore to a scratch database first, or to prod only if prod is lost.
+Restore to a scratch database first (the [restore drill](#restore-drill) does this), or to
+prod only if prod is lost.
 
 ```bash
 aws s3 cp s3://gradebook-backups/gradebook/<key>.dump /tmp/gb.dump --endpoint-url "$R2_ENDPOINT"
@@ -236,8 +249,8 @@ rm /tmp/gb.dump
 ```
 
 Use pg_restore **18** (the `postgres:18` image does this). An older client or server rejects a
-PG18 dump. `<target url>` is a `postgresql://` URL for the owner role. For a scratch restore,
-see M6 above. Delete the dump afterwards: it holds student data.
+PG18 dump. `<target url>` is a `postgresql://` URL for the owner role. Delete the dump
+afterwards: it holds student data.
 
 ## Rotate secrets
 
