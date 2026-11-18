@@ -7,7 +7,8 @@ status: accepted
 We host the gradebook as **one Fly.io app in `iad`** that serves both the built SPA and
 the JSON API (`/api`) from a single origin, with a **Neon free-tier Postgres** database.
 Nightly `pg_dump` backups go to a **Cloudflare R2** bucket from a **Fly scheduled machine**
-in a separate Fly app. Deploys are a manual `fly deploy`. The site stays on the
+in a separate Fly app. Every push to `main` deploys through GitHub Actions after the CI
+gates pass (amended 2026-11-18; first planned as a manual `fly deploy`). The site stays on the
 `*.fly.dev` URL at first; a custom domain can come later. See
 [`docs/runbook.md`](../runbook.md).
 
@@ -41,3 +42,6 @@ read-only role.
   app, so the running app can read the owner URL. The DML-only role protects against SQL
   injection, not against code execution in the app. For the stronger guarantee, run
   `alembic upgrade head` from a local shell with the owner URL and drop `release_command`.
+- Continuous deploy: a merge to `main` goes live with no staging step, so the CI gates are
+  the only check before Katie sees a change. GitHub stores one secret, a Fly deploy token
+  scoped to this app. App secrets stay in Fly.
