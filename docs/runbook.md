@@ -154,7 +154,23 @@ Repeat it once real data exists: on an empty database it proves only the schema.
 
 ## Deploy
 
-From the repo root, on `main`:
+**Automatic:** every push to `main` runs `.github/workflows/deploy.yml`. It runs the full
+backend and frontend gates, then `flyctl deploy --local-only` on the GitHub runner, then
+checks `/api/health`. Pushes that only touch `docs/`, `ops/` or Markdown do not deploy.
+Watch it in GitHub, Actions, Deploy. To redeploy without a new commit, run the workflow
+by hand there (`workflow_dispatch`).
+
+The workflow needs the `FLY_API_TOKEN` secret in the GitHub `production` environment. It is a
+deploy token for `APP` only:
+
+```bash
+fly tokens create deploy -a APP --expiry 8760h | gh secret set FLY_API_TOKEN --env production --repo drewpearce/gradebook
+```
+
+The token expires after a year. Rerun the same command to rotate it. The pipe means the token
+is never shown on screen.
+
+**By hand** (when Actions is down), from the repo root on `main`:
 
 ```bash
 fly deploy -a APP     # builds, runs the release_command (migrations), replaces the machine

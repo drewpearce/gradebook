@@ -1,0 +1,47 @@
+name: Deploy
+
+# Every push to main runs the full backend and frontend gates, then deploys to Fly.
+# Migrations run in fly.toml's release_command; if they fail, the old version keeps running.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'ops/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never cancel a deploy halfway; queue the next one instead.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    uses: ./.github/workflows/ci.yml
+
+  frontend:
+    uses: ./.github/workflows/frontend.yml
+
+  deploy:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://gradebook-caffdev.fly.dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # v1.6
+
+      # Build on the runner (amd64, Docker): the remote Depot builder has hung before.
+      - name: Deploy
+        run: flyctl deploy --local-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Smoke check
+        run: curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://gradebook-caffdev.fly.dev/api/health
