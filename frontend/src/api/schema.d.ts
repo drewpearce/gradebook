@@ -112,6 +112,26 @@ export interface paths {
         patch: operations["update_class_classes__class_id__patch"];
         trace?: never;
     };
+    "/classes/{class_id}/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Class Counts
+         * @description Counts of what a delete would cascade to, for the delete dialogs' impact line.
+         */
+        get: operations["get_class_counts_classes__class_id__counts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/classes/{class_id}/grade-levels": {
         parameters: {
             query?: never;
@@ -478,6 +498,13 @@ export interface components {
             /** Weight */
             weight: string;
         };
+        /** CategoryCounts */
+        CategoryCounts: {
+            /** Assignments */
+            assignments: number;
+            /** Scores */
+            scores: number;
+        };
         /** CategoryCreate */
         CategoryCreate: {
             /** Name */
@@ -519,6 +546,25 @@ export interface components {
             /** Weight */
             weight?: number | string | null;
         };
+        /**
+         * ClassCounts
+         * @description What deleting the Class (or one Student/Subject/Category in it) would take with it.
+         */
+        ClassCounts: {
+            /** Categories */
+            categories: {
+                [key: string]: components["schemas"]["CategoryCounts"];
+            };
+            /** Students */
+            students: {
+                [key: string]: components["schemas"]["StudentCounts"];
+            };
+            /** Subjects */
+            subjects: {
+                [key: string]: components["schemas"]["SubjectCounts"];
+            };
+            totals: components["schemas"]["ClassTotals"];
+        };
         /** ClassCreate */
         ClassCreate: {
             /** Name */
@@ -543,6 +589,19 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** ClassTotals */
+        ClassTotals: {
+            /** Assignments */
+            assignments: number;
+            /** Categories */
+            categories: number;
+            /** Scores */
+            scores: number;
+            /** Students */
+            students: number;
+            /** Subjects */
+            subjects: number;
         };
         /** ClassUpdate */
         ClassUpdate: {
@@ -720,6 +779,11 @@ export interface components {
             /** Points Earned */
             points_earned: number | string;
         };
+        /** StudentCounts */
+        StudentCounts: {
+            /** Scores */
+            scores: number;
+        };
         /** StudentCreate */
         StudentCreate: {
             /**
@@ -766,6 +830,15 @@ export interface components {
             grade_level_id?: string | null;
             /** Name */
             name?: string | null;
+        };
+        /** SubjectCounts */
+        SubjectCounts: {
+            /** Assignments */
+            assignments: number;
+            /** Categories */
+            categories: number;
+            /** Scores */
+            scores: number;
         };
         /** SubjectCreate */
         SubjectCreate: {
@@ -1191,6 +1264,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClassRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_class_counts_classes__class_id__counts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                class_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassCounts"];
                 };
             };
             /** @description Validation Error */

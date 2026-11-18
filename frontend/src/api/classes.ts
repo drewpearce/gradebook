@@ -24,6 +24,22 @@ export function useClass(classId: string) {
   })
 }
 
+export function useClassCounts(classId: string) {
+  return useQuery({
+    queryKey: ['class', classId, 'counts'],
+    // Only called from inside delete dialogs. gcTime 0 drops the counts when the dialog
+    // closes, so each open loads fresh numbers instead of flashing stale cached ones.
+    staleTime: 0,
+    gcTime: 0,
+    queryFn: () =>
+      unwrap(
+        client.GET('/classes/{class_id}/counts', {
+          params: { path: { class_id: classId } },
+        }),
+      ),
+  })
+}
+
 export function useCreateClass() {
   return useInvalidatingMutation((body: ClassCreate) =>
     unwrap(client.POST('/classes', { body })),

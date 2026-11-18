@@ -14,6 +14,7 @@ import {
   useUpdateSubject,
 } from '@/api/subjects'
 import { ConfirmDialog } from '@/components/setup/ConfirmDialog'
+import { DeleteImpact } from '@/components/setup/DeleteImpact'
 import { FormDialog } from '@/components/setup/FormDialog'
 import { SetupSection } from '@/components/setup/SetupSection'
 import { useDialogForm } from '@/components/setup/useDialogForm'
@@ -183,6 +184,13 @@ function SubjectCard({ classId, subject }: { classId: string; subject: Subject }
             }
             title="Delete subject?"
             description={`Remove “${subject.name}”, its categories, assignments, and scores.`}
+            details={
+              <DeleteImpact
+                classId={classId}
+                pick={(c) => c.subjects[subject.id] ?? {}}
+                keys={['categories', 'assignments', 'scores']}
+              />
+            }
             onConfirm={() => removeSubject.mutateAsync(subject.id)}
           />
         </div>
@@ -234,6 +242,13 @@ function SubjectCard({ classId, subject }: { classId: string; subject: Subject }
                       }
                       title="Delete category?"
                       description={`Remove “${cat.name}”, its assignments, and scores.`}
+                      details={
+                        <DeleteImpact
+                          classId={classId}
+                          pick={(c) => c.categories[cat.id] ?? {}}
+                          keys={['assignments', 'scores']}
+                        />
+                      }
                       onConfirm={() => removeCategory.mutateAsync(cat.id)}
                     />
                   </div>

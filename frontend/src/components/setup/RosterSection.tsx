@@ -9,6 +9,7 @@ import {
   useUpdateStudent,
 } from '@/api/students'
 import { ConfirmDialog } from '@/components/setup/ConfirmDialog'
+import { DeleteImpact } from '@/components/setup/DeleteImpact'
 import { FormDialog } from '@/components/setup/FormDialog'
 import { SetupSection } from '@/components/setup/SetupSection'
 import { useDialogForm } from '@/components/setup/useDialogForm'
@@ -166,6 +167,13 @@ export function RosterSection({ classId }: { classId: string }) {
                   }
                   title="Delete student?"
                   description={`Remove “${student.name}” and their scores.`}
+                  details={
+                    <DeleteImpact
+                      classId={classId}
+                      pick={(c) => c.students[student.id] ?? {}}
+                      keys={['scores']}
+                    />
+                  }
                   onConfirm={() => remove.mutateAsync(student.id)}
                 />
               </div>

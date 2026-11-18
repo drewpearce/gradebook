@@ -70,3 +70,35 @@ class GradingScaleRead(BaseModel):
     id: uuid.UUID
     class_id: uuid.UUID
     bands: list[GradeBandRead]
+
+
+class StudentCounts(BaseModel):
+    scores: int
+
+
+class SubjectCounts(BaseModel):
+    categories: int
+    assignments: int
+    scores: int
+
+
+class CategoryCounts(BaseModel):
+    assignments: int
+    scores: int
+
+
+class ClassTotals(BaseModel):
+    students: int
+    subjects: int
+    categories: int
+    assignments: int
+    scores: int
+
+
+class ClassCounts(BaseModel):
+    """What deleting the Class (or one Student/Subject/Category in it) would take with it."""
+
+    totals: ClassTotals
+    students: dict[uuid.UUID, StudentCounts]
+    subjects: dict[uuid.UUID, SubjectCounts]
+    categories: dict[uuid.UUID, CategoryCounts]
