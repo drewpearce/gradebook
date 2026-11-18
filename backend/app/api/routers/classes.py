@@ -1,26 +1,35 @@
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import distinct, func, select
 
 from app.api.deps import SessionDep, apply_patch, commit_or_conflict, get_or_404
 from app.models import (
+    Assignment,
+    Category,
     Class,
     GradeBand,
     GradeLevel,
     GradingScale,
+    Score,
     Student,
+    Subject,
     assignment_audience,
 )
 from app.schemas.class_ import (
+    CategoryCounts,
+    ClassCounts,
     ClassCreate,
     ClassRead,
+    ClassTotals,
     ClassUpdate,
     GradeLevelCreate,
     GradeLevelRead,
     GradeLevelUpdate,
     GradingScaleRead,
     GradingScaleUpsert,
+    StudentCounts,
+    SubjectCounts,
 )
 
 router = APIRouter(tags=["classes"])
@@ -61,6 +70,56 @@ def update_class(class_id: UUID, payload: ClassUpdate, session: SessionDep) -> C
 def delete_class(class_id: UUID, session: SessionDep) -> None:
     session.delete(get_or_404(session, Class, class_id, "Class"))
     session.commit()
+
+
+@router.get("/classes/{class_id}/counts", response_model=ClassCounts)
+def get_class_counts(class_id: UUID, session: SessionDep) -> ClassCounts:
+    """Counts of what a delete would cascade to, for the delete dialogs' impact line."""
+    get_or_404(session, Class, class_id, "Class")
+    students = {
+        id_: StudentCounts(scores=scores)
+        for id_, scores in session.execute(
+            select(Student.id, func.count(Score.id))
+            .outerjoin(Score, Score.student_id == Student.id)
+            .where(Student.class_id == class_id)
+            .group_by(Student.id)
+        )
+    }
+    subjects = {
+        id_: SubjectCounts(categories=0, assignments=0, scores=0)
+        for id_ in session.scalars(select(Subject.id).where(Subject.class_id == class_id))
+    }
+    categories: dict[UUID, CategoryCounts] = {}
+    for cat_id, subject_id, assignments, scores in session.execute(
+        select(
+            Category.id,
+            Category.subject_id,
+            func.count(distinct(Assignment.id)),
+            func.count(Score.id),
+        )
+        .join(Subject, Subject.id == Category.subject_id)
+        .outerjoin(Assignment, Assignment.category_id == Category.id)
+        .outerjoin(Score, Score.assignment_id == Assignment.id)
+        .where(Subject.class_id == class_id)
+        .group_by(Category.id, Category.subject_id)
+    ):
+        categories[cat_id] = CategoryCounts(assignments=assignments, scores=scores)
+        subject = subjects[subject_id]
+        subject.categories += 1
+        subject.assignments += assignments
+        subject.scores += scores
+    return ClassCounts(
+        totals=ClassTotals(
+            students=len(students),
+            subjects=len(subjects),
+            categories=len(categories),
+            assignments=sum(c.assignments for c in categories.values()),
+            scores=sum(s.scores for s in students.values()),
+        ),
+        students=students,
+        subjects=subjects,
+        categories=categories,
+    )
 
 
 # --- Grade Level -----------------------------------------------------------

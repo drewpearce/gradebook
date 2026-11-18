@@ -15,3 +15,19 @@ export function gradeLabel(percent: string | null, letter: string | null): strin
     .filter((part) => part !== null)
     .join(' · ')
 }
+
+export const NOTHING_ELSE = 'Nothing else will be deleted.'
+
+/** "12 students, 4 subjects": the non-zero counts, in `order` ([key, singular, plural]). */
+export function describeCounts(
+  counts: Record<string, number>,
+  order: [key: string, singular: string, plural: string][],
+): string {
+  const parts = order
+    .filter(([key]) => (counts[key] ?? 0) > 0)
+    .map(
+      ([key, singular, plural]) =>
+        `${counts[key]} ${counts[key] === 1 ? singular : plural}`,
+    )
+  return parts.length > 0 ? parts.join(', ') : NOTHING_ELSE
+}

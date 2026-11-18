@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatPercent, formatPoints, gradeLabel } from './format'
+import { describeCounts, formatPercent, formatPoints, gradeLabel } from './format'
 
 describe('formatPoints', () => {
   it.each([
@@ -32,5 +32,21 @@ describe('gradeLabel', () => {
     [null, null, ''],
   ])('labels %s / %s as %s', (percent, letter, expected) => {
     expect(gradeLabel(percent, letter)).toBe(expected)
+  })
+})
+
+describe('describeCounts', () => {
+  const order: [string, string, string][] = [
+    ['categories', 'category', 'categories'],
+    ['scores', 'score', 'scores'],
+  ]
+
+  it.each([
+    [{ categories: 2, scores: 1 }, '2 categories, 1 score'],
+    [{ categories: 1, scores: 2 }, '1 category, 2 scores'],
+    [{ categories: 0, scores: 5 }, '5 scores'],
+    [{ categories: 0, scores: 0 }, 'Nothing else will be deleted.'],
+  ])('describes %j as %s', (counts, expected) => {
+    expect(describeCounts(counts, order)).toBe(expected)
   })
 })

@@ -117,6 +117,46 @@ def test_class_crud(client: TestClient) -> None:
     assert client.get(f"/classes/{class_id}").status_code == 404
 
 
+def test_class_counts(client: TestClient) -> None:
+    s = _mixed_audience_setup(client)
+    quizzes = _category(client, s["subject"], "Quizzes", "0")  # no assignments: a zero entry
+    carol = _student(client, s["class_id"], s["first"], "Carol")  # no scores: a zero entry
+    _score(client, s["alice"], s["hw1"], "8")
+    _score(client, s["alice"], s["test1"], "90")
+    _score(client, s["bob"], s["hw1"], "8")
+    _score(client, s["bob"], s["hw2"], "10")
+    _score(client, s["bob"], s["test1"], "90")
+
+    r = client.get(f"/classes/{s['class_id']}/counts")
+    assert r.status_code == 200
+    assert r.json() == {
+        "totals": {"students": 3, "subjects": 1, "categories": 3, "assignments": 3, "scores": 5},
+        "students": {s["alice"]: {"scores": 2}, s["bob"]: {"scores": 3}, carol: {"scores": 0}},
+        "subjects": {s["subject"]: {"categories": 3, "assignments": 3, "scores": 5}},
+        "categories": {
+            s["homework"]: {"assignments": 2, "scores": 3},
+            s["tests"]: {"assignments": 1, "scores": 2},
+            quizzes: {"assignments": 0, "scores": 0},
+        },
+    }
+
+
+def test_class_counts_for_an_empty_class_are_zero(client: TestClient) -> None:
+    class_id = _class(client)
+    r = client.get(f"/classes/{class_id}/counts")
+    assert r.status_code == 200
+    assert r.json() == {
+        "totals": {"students": 0, "subjects": 0, "categories": 0, "assignments": 0, "scores": 0},
+        "students": {},
+        "subjects": {},
+        "categories": {},
+    }
+
+
+def test_class_counts_for_an_unknown_class_is_404(client: TestClient) -> None:
+    assert client.get(f"/classes/{uuid4()}/counts").status_code == 404
+
+
 def test_duplicate_grade_level_conflicts(client: TestClient) -> None:
     class_id = _class(client)
     _grade_level(client, class_id, "1st")

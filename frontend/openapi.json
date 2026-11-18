@@ -279,6 +279,24 @@
         "title": "CategoryBreakdown",
         "type": "object"
       },
+      "CategoryCounts": {
+        "properties": {
+          "assignments": {
+            "title": "Assignments",
+            "type": "integer"
+          },
+          "scores": {
+            "title": "Scores",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "assignments",
+          "scores"
+        ],
+        "title": "CategoryCounts",
+        "type": "object"
+      },
       "CategoryCreate": {
         "properties": {
           "name": {
@@ -388,6 +406,52 @@
         "title": "CategoryUpdate",
         "type": "object"
       },
+      "ClassCounts": {
+        "description": "What deleting the Class (or one Student/Subject/Category in it) would take with it.",
+        "properties": {
+          "categories": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CategoryCounts"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "title": "Categories",
+            "type": "object"
+          },
+          "students": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/StudentCounts"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "title": "Students",
+            "type": "object"
+          },
+          "subjects": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SubjectCounts"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "title": "Subjects",
+            "type": "object"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/ClassTotals"
+          }
+        },
+        "required": [
+          "totals",
+          "students",
+          "subjects",
+          "categories"
+        ],
+        "title": "ClassCounts",
+        "type": "object"
+      },
       "ClassCreate": {
         "properties": {
           "name": {
@@ -432,6 +496,39 @@
           "updated_at"
         ],
         "title": "ClassRead",
+        "type": "object"
+      },
+      "ClassTotals": {
+        "properties": {
+          "assignments": {
+            "title": "Assignments",
+            "type": "integer"
+          },
+          "categories": {
+            "title": "Categories",
+            "type": "integer"
+          },
+          "scores": {
+            "title": "Scores",
+            "type": "integer"
+          },
+          "students": {
+            "title": "Students",
+            "type": "integer"
+          },
+          "subjects": {
+            "title": "Subjects",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "students",
+          "subjects",
+          "categories",
+          "assignments",
+          "scores"
+        ],
+        "title": "ClassTotals",
         "type": "object"
       },
       "ClassUpdate": {
@@ -851,6 +948,19 @@
         "title": "ScoreUpsert",
         "type": "object"
       },
+      "StudentCounts": {
+        "properties": {
+          "scores": {
+            "title": "Scores",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scores"
+        ],
+        "title": "StudentCounts",
+        "type": "object"
+      },
       "StudentCreate": {
         "properties": {
           "grade_level_id": {
@@ -944,6 +1054,29 @@
           }
         },
         "title": "StudentUpdate",
+        "type": "object"
+      },
+      "SubjectCounts": {
+        "properties": {
+          "assignments": {
+            "title": "Assignments",
+            "type": "integer"
+          },
+          "categories": {
+            "title": "Categories",
+            "type": "integer"
+          },
+          "scores": {
+            "title": "Scores",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "categories",
+          "assignments",
+          "scores"
+        ],
+        "title": "SubjectCounts",
         "type": "object"
       },
       "SubjectCreate": {
@@ -1632,6 +1765,55 @@
           }
         ],
         "summary": "Update Class",
+        "tags": [
+          "classes"
+        ]
+      }
+    },
+    "/classes/{class_id}/counts": {
+      "get": {
+        "description": "Counts of what a delete would cascade to, for the delete dialogs' impact line.",
+        "operationId": "get_class_counts_classes__class_id__counts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "class_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Class Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassCounts"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Class Counts",
         "tags": [
           "classes"
         ]

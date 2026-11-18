@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useClass, useDeleteClass } from '@/api/classes'
 import { ClassDialog } from '@/components/setup/ClassDialog'
 import { ConfirmDialog } from '@/components/setup/ConfirmDialog'
+import { DeleteImpact } from '@/components/setup/DeleteImpact'
 import { GradeLevelsSection } from '@/components/setup/GradeLevelsSection'
 import { GradingScaleSection } from '@/components/setup/GradingScaleSection'
 import { RosterSection } from '@/components/setup/RosterSection'
@@ -56,19 +57,6 @@ export function ClassDetailPage() {
               </Button>
             }
           />
-          <ConfirmDialog
-            trigger={
-              <Button variant="ghost" size="sm">
-                Delete class
-              </Button>
-            }
-            title="Delete class?"
-            description={`Remove “${klass.name}” and everything in it.`}
-            onConfirm={async () => {
-              await deleteClass.mutateAsync(klass.id)
-              navigate('/', { replace: true })
-            }}
-          />
         </div>
       </div>
 
@@ -76,6 +64,34 @@ export function ClassDetailPage() {
       <RosterSection classId={klass.id} />
       <SubjectsSection classId={klass.id} />
       <GradingScaleSection classId={klass.id} />
+
+      <section className="space-y-2 border-t pt-6">
+        <h2 className="text-sm font-medium">Delete class</h2>
+        <p className="text-sm text-muted-foreground">
+          Permanently remove this class and everything in it.
+        </p>
+        <ConfirmDialog
+          trigger={
+            <Button variant="destructive" size="sm">
+              Delete class
+            </Button>
+          }
+          title="Delete class?"
+          description={`Remove “${klass.name}” and everything in it.`}
+          details={
+            <DeleteImpact
+              classId={klass.id}
+              pick={(c) => c.totals}
+              keys={['students', 'subjects', 'categories', 'assignments', 'scores']}
+            />
+          }
+          confirmText={klass.name}
+          onConfirm={async () => {
+            await deleteClass.mutateAsync(klass.id)
+            navigate('/', { replace: true })
+          }}
+        />
+      </section>
     </div>
   )
 }
